@@ -10,7 +10,7 @@ __pycache__/
 venv/
 env/
 .venv/
-.env/
+Dataset/.env/
 
 # Ignore IDE configuration files (e.g., DataSpell, PyCharm)
 .idea/
@@ -27,3 +27,7 @@ Thumbs.db
 *.tmp
 
 results
+
+# Ignore .env files
+Dataset/.env
+Dataset/.env
