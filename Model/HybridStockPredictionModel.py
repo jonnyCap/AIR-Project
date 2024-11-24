@@ -54,9 +54,9 @@ class StockPerformancePredictionModel(nn.Module):
         print(type(encoded_output))  # Check if it's a NumPy array
         text_embedding = torch.from_numpy(encoded_output).float().to(device)
 
-        print(f"Text embedding: {text_embedding}")
-        print("Encoded output contains NaN:", np.isnan(encoded_output).any())
-        print("Encoded output contains Inf:", np.isinf(encoded_output).any())
+        # print(f"Text embedding: {text_embedding}")
+        # print("Encoded output contains NaN:", np.isnan(encoded_output).any())
+        # print("Encoded output contains Inf:", np.isinf(encoded_output).any())
 
 
 # Add batch dimension if processing a single input
@@ -78,7 +78,7 @@ class StockPerformancePredictionModel(nn.Module):
             # Text-only input (for inference)
             combined_input = torch.relu(self.text_only_fc(text_embedding))
 
-        print(f"Combined input: {combined_input}")
+        # print(f"Combined input: {combined_input}")
 
         if not predict_autoregressively:
             # Repeat for time-series prediction (current behavior)
