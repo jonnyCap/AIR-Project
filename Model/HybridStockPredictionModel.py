@@ -51,7 +51,7 @@ class StockPerformancePredictionModel(nn.Module):
 
         # Text embedding
         encoded_output = self.text_encoder.encode(idea, convert_to_numpy=True)
-        print(type(encoded_output))  # Check if it's a NumPy array
+        # print(type(encoded_output))  # Check if it's a NumPy array
         text_embedding = torch.from_numpy(encoded_output).float().to(device)
 
         # print(f"Text embedding: {text_embedding}")
