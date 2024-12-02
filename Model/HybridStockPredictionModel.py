@@ -17,31 +17,64 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 class StockPerformancePredictionModel(nn.Module):
-    def __init__(self, static_feature_dim, historical_dim, hidden_dim, forecast_steps):
+    def __init__(self, static_feature_dim, historical_dim, hidden_dim, forecast_steps, num_lstm_layers=2):
         super(StockPerformancePredictionModel, self).__init__()
-        
-        # Text representation layer (Sentence-BERT) 
+
+        # Text representation layer (Sentence-BERT)
         self.text_encoder = SentenceTransformer('all-MiniLM-L6-v2')
 
         # Freeze Sentence-BERT parameters (optional)
         for param in self.text_encoder.parameters():
             param.requires_grad = False
 
-        # Static feature layer (for training only)
-        self.static_fc = nn.Linear(static_feature_dim, hidden_dim)
+        # Static feature layers (deep)
+        self.static_fc = nn.Sequential(
+            nn.Linear(static_feature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU()
+        )
 
-        # Historical stock data layer (for training only)
-        self.historical_fc = nn.Linear(historical_dim, hidden_dim)
+        # Historical stock data layers (deep)
+        self.historical_fc = nn.Sequential(
+            nn.Linear(historical_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU()
+        )
 
-        # Fusion layer to combine all features (training) or text only (inference)
-        self.fusion_fc = nn.Linear(384 + 2 * hidden_dim, hidden_dim)  # 384 is the fixed text embedding dimension
+        # Fusion layer to combine text, static, and historical embeddings
+        self.fusion_fc = nn.Sequential(
+            nn.Linear(384 + 2 * hidden_dim, hidden_dim),  # 384 is the fixed text embedding dimension
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU()
+        )
 
-        # Fusion layer for inference (text-only input)
-        self.text_only_fc = nn.Linear(384, hidden_dim)  # 384 is the fixed text embedding dimension
+        # Text-only layer for inference
+        self.text_only_fc = nn.Sequential(
+            nn.Linear(384, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU()
+        )
 
-        # Time-series prediction (LSTM)
-        self.lstm = nn.LSTM(hidden_dim, hidden_dim, batch_first=True)
-        self.output_fc = nn.Linear(hidden_dim, 1)  # Output single value per timestep
+        # Multi-layer LSTM with residual connection
+        self.lstm = nn.LSTM(hidden_dim, hidden_dim, num_layers=num_lstm_layers, batch_first=True, dropout=0.2)
+
+        # Attention mechanism
+        self.attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=4, batch_first=True)
+
+        # Output layer for forecasting
+        self.output_fc = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim // 2, 1)  # Output single value per timestep
+        )
 
         self.forecast_steps = forecast_steps
 
@@ -51,59 +84,55 @@ class StockPerformancePredictionModel(nn.Module):
 
         # Text embedding
         encoded_output = self.text_encoder.encode(idea, convert_to_numpy=True)
-        # print(type(encoded_output))  # Check if it's a NumPy array
         text_embedding = torch.from_numpy(encoded_output).float().to(device)
 
-        # print(f"Text embedding: {text_embedding}")
-        # print("Encoded output contains NaN:", np.isnan(encoded_output).any())
-        # print("Encoded output contains Inf:", np.isinf(encoded_output).any())
-
-
-# Add batch dimension if processing a single input
+        # Add batch dimension if processing a single input
         if text_embedding.dim() == 1:
             text_embedding = text_embedding.unsqueeze(0)
 
-        # Use historical data and static features during training or when explicitly specified
         if use_auxiliary_inputs:
             # Static feature embedding
-            static_embedding = torch.relu(self.static_fc(static_features.to(device)))
+            static_embedding = self.static_fc(static_features.to(device))
 
             # Historical stock data embedding
-            historical_embedding = torch.relu(self.historical_fc(historical_data.to(device)))
+            historical_embedding = self.historical_fc(historical_data.to(device))
 
-            # Fusion with text + static + historical embeddings
+            # Fusion of text + static + historical embeddings
             combined_input = torch.cat((text_embedding, static_embedding, historical_embedding), dim=-1)
-            combined_input = torch.relu(self.fusion_fc(combined_input))
+            combined_input = self.fusion_fc(combined_input)
         else:
             # Text-only input (for inference)
-            combined_input = torch.relu(self.text_only_fc(text_embedding))
-
-        # print(f"Combined input: {combined_input}")
+            combined_input = self.text_only_fc(text_embedding)
 
         if not predict_autoregressively:
-            # Repeat for time-series prediction (current behavior)
+            # Repeat for time-series prediction
             lstm_input = combined_input.unsqueeze(1).repeat(1, self.forecast_steps, 1)
-            lstm_out, _ = self.lstm(lstm_input)
-            predictions = self.output_fc(lstm_out).squeeze(-1)  # Shape: (batch_size, forecast_steps)
-            return predictions
 
+            # Pass through LSTM
+            lstm_out, _ = self.lstm(lstm_input)
+
+            # Apply attention mechanism
+            attn_out, _ = self.attention(lstm_out, lstm_out, lstm_out)
+
+            # Output predictions
+            predictions = self.output_fc(attn_out).squeeze(-1)  # Shape: (batch_size, forecast_steps)
+            return predictions
         else:
             # Autoregressive prediction
-            predictions = []  # Use a list to collect the predictions
-            hidden_state = None  # Initialize hidden state for LSTM
-            input_step = combined_input.unsqueeze(1)  # Start with initial input for the first timestep
+            predictions = []
+            hidden_state = None
+            input_step = combined_input.unsqueeze(1)
 
             for _ in range(self.forecast_steps):
-                # Pass through LSTM for one timestep
                 lstm_out, hidden_state = self.lstm(input_step, hidden_state)
-                current_prediction = self.output_fc(lstm_out.squeeze(1))  # Predict for the current timestep
-                predictions.append(current_prediction)  # Append the current prediction to the list
+                attn_out, _ = self.attention(lstm_out, lstm_out, lstm_out)
+                current_prediction = self.output_fc(attn_out.squeeze(1))
+                predictions.append(current_prediction)
 
-                # Use only text embedding for subsequent steps
-                input_step = torch.relu(self.text_only_fc(text_embedding)).unsqueeze(1)
+                # Use text-only for subsequent steps
+                input_step = self.text_only_fc(text_embedding).unsqueeze(1)
 
-            # Stack predictions to form the final output
-            predictions = torch.stack(predictions, dim=1)  # Shape: (batch_size, forecast_steps)
+            predictions = torch.stack(predictions, dim=1)
             return predictions
 
 
