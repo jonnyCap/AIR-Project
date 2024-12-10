@@ -32,4 +32,8 @@ venv
 # Ignore .env files
 Dataset/.env
 
+#Ignore Large Embeddings
+RetrievalSystem/Embeddings/
+RetrievalSystem/Embeddings/*
+
 
