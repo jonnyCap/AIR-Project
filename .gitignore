@@ -27,6 +27,7 @@ Thumbs.db
 *.tmp
 
 results
+venv
 
 # Ignore .env files
 Dataset/.env
