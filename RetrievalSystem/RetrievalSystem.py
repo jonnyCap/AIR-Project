@@ -8,14 +8,17 @@ from sklearn.metrics.pairwise import cosine_similarity
 import os
 import spacy
 
+BERT_ENCODING_SIZE = 768
+
 class RetrievalSystem:
-    def __init__(self, path: str):
+    def __init__(self, path: str, retrieval_number: int = 16):
         """
         Constructor to initialize the RetrievalSystem with a CSV file.
         Args:
             path (str): The path to the CSV file to load.
         """
         self.model_type = 'bert-base-nli-mean-tokens'
+        self.retrieval_number = retrieval_number
 
         if os.path.exists(path):
             self.data = pd.read_csv(path)
@@ -37,7 +40,7 @@ class RetrievalSystem:
         )
         return preprocessed_text
 
-    def find_similar_entries(self, text: str, top_n: int = 5):
+    def find_similar_entries(self, text: str, top_n: int = None):
         """
         Embeds the input text using BERT, compares it with the entries in the CSV file,
         and returns the most similar entries based on cosine similarity.
@@ -50,6 +53,9 @@ class RetrievalSystem:
         # Preprocess the input text
         text = self.preprocess_text(text)
 
+        if not top_n:
+            top_n = self.retrieval_number
+
         # Generate embedding for the preprocessed text
         input_embedding = self.model.encode([text])
 
@@ -57,8 +63,10 @@ class RetrievalSystem:
         if 'embedding' not in self.data.columns:
             raise ValueError("The CSV file must have an 'embedding' column.")
 
-        # Convert embeddings from CSV into a list of arrays
-        self.data['embedding'] = self.data['embedding'].apply(eval)  # Convert strings to lists
+        # Convert strings to lists only if they are strings
+        if isinstance(self.data['embedding'].iloc[0], str):
+            self.data['embedding'] = self.data['embedding'].apply(eval)
+
         embeddings = self.data['embedding'].tolist()
 
         # Compute cosine similarities
