@@ -40,13 +40,14 @@ class RetrievalSystem:
         )
         return preprocessed_text
 
-    def find_similar_entries(self, text: str, top_n: int = None):
+    def find_similar_entries(self, text: str, top_n: int = None, excluded_tickers=None):
         """
         Embeds the input text using BERT, compares it with the entries in the CSV file,
         and returns the most similar entries based on cosine similarity.
         Args:
             text (str): The input text to embed and compare.
             top_n (int): The number of most similar entries to return.
+            excluded_tickers (list): List of tickers to exclude from similarity checks.
         Returns:
             pd.DataFrame: The top-n most similar entries from the CSV.
         """
@@ -63,18 +64,26 @@ class RetrievalSystem:
         if 'embedding' not in self.data.columns:
             raise ValueError("The CSV file must have an 'embedding' column.")
 
-        # Convert strings to lists only if they are strings
-        if isinstance(self.data['embedding'].iloc[0], str):
-            self.data['embedding'] = self.data['embedding'].apply(eval)
+        # Create a copy of self.data to work with
+        copied_data = self.data.copy()
 
-        embeddings = self.data['embedding'].tolist()
+        # Exclude rows with tickers in excluded_tickers
+        if excluded_tickers:
+            copied_data = copied_data[~copied_data['tickers'].isin(excluded_tickers)]
+
+        # Convert strings to lists only if they are strings
+        if isinstance(copied_data['embedding'].iloc[0], str):
+            copied_data['embedding'] = copied_data['embedding'].apply(eval)
+
+        embeddings = copied_data['embedding'].tolist()
 
         # Compute cosine similarities
         similarities = cosine_similarity(input_embedding, embeddings)[0]
-        self.data['similarity'] = similarities
+        copied_data['similarity'] = similarities
 
         # Sort by similarity and return the top N results
-        return input_embedding, self.data.sort_values(by='similarity', ascending=False).head(top_n)
+        return input_embedding, copied_data.sort_values(by='similarity', ascending=False).head(top_n)
+
 
     def process_and_save_embeddings(self, path: str, output_path: str):
         """
