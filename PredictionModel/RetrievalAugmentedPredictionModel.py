@@ -5,8 +5,8 @@
 # 
 #%%
 import torch.nn as nn
-from RetrievalSystem.RetrievalSystem import RetrievalSystem
-from PredictionModel.AttentionModel.AttentionModel import AttentionModel
+from RetrievalSystem import RetrievalSystem
+from AttentionModel import AttentionModel
 import pandas as pd
 import torch
 
@@ -151,7 +151,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
 
         # Extract embeddings and tickers from retrieved documents
         retrieved_idea_embeddings = retrieved_documents.loc[:, ["embedding"]].values
-        print("Combined embeddings shape: ", retrieved_idea_embeddings.shape)
+        # print("Combined embeddings shape: ", retrieved_idea_embeddings.shape)
         retrieved_idea_embeddings = torch.tensor(retrieved_idea_embeddings.tolist(), dtype=torch.float32).to(device)
 
         retrieved_similarities = retrieved_documents.loc[:, ["similarity"]].values.flatten()
@@ -159,10 +159,10 @@ class RetrievalAugmentedPredictionModel(nn.Module):
 
         # Filter rows from the dataset where the index is in retrieved tickers
         retrieved_tickers = retrieved_documents.loc[:, ["tickers"]].values.flatten()  # Flatten to get a 1D array of tickers
-        print("Retrieved tickers: ", retrieved_tickers)
+        # print("Retrieved tickers: ", retrieved_tickers)
         dataset = dataset.set_index("tickers")
         filtered_data = dataset[dataset.index.isin(retrieved_tickers)]
-        print("We have these retrieved documents: ", filtered_data.shape)
+        # print("We have these retrieved documents: ", filtered_data.shape)
 
         # Create a vector with all columns that are not "ticker", "business_description", or starting with "month"
         static_columns = [
@@ -175,7 +175,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         month_columns = [col for col in filtered_data.columns if col.startswith("month")]
         month_vector = filtered_data[month_columns].values.flatten()  # Convert to NumPy array
 
-        print(f"Shape of static vector: {static_vector.shape}, Shape of month vector: {month_vector.shape}")
+        # print(f"Shape of static vector: {static_vector.shape}, Shape of month vector: {month_vector.shape}")
 
         # Convert vectors to tensors and move to the appropriate device
         combined_static_tensor = torch.tensor(static_vector, dtype=torch.float32).to(device)
@@ -192,12 +192,12 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             # Put retrieved documents into appropriate input layers
             weighted_sum, attention_weights = self.attention_model(retrieved_idea_embeddings)
             attention_weights = attention_weights.view(1, -1)
-            print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
+            # print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
 
             similarity_output = self.similarity_fc(retrieved_similarities).unsqueeze(0)
             combined_static_output = self.static_fc(combined_static_tensor).unsqueeze(0)
             combined_historical_output = self.historical_fc(combined_historical_tensor).unsqueeze(0)
-            print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
+            # print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
 
             # 1. FUSION LAYER - Fuse retrieval layers together
             combined_retrieval_input = torch.cat((weighted_sum, attention_weights, combined_static_output, combined_historical_output, similarity_output), dim=1)
@@ -218,7 +218,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
                 historical_output = self.idea_historical_fc(historical_input)
 
             # 2. FUSION LAYER - Fuse combined retrieval documents and new idea together
-            print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
+            # print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
             combined_idea_input = torch.cat((first_fusion_attention_output, idea_output, static_output, historical_output), dim=1)
             second_fusion_output = self._second_fusion_fc(combined_idea_input)
 
@@ -238,9 +238,9 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             predictions.append(final_prediction)
 
             # Update historical tensor for next step
-            print(f"Final prediction: {final_prediction.shape}, historical tensor: {historical_tensor.shape}")
+            # print(f"Final prediction: {final_prediction.shape}, historical tensor: {historical_tensor.shape}")
             historical_tensor = torch.cat((historical_tensor[:, 1:], final_prediction), dim=1)
-            print(f"Resulting historical tensor shape: {historical_tensor.shape}")
+            # print(f"Resulting historical tensor shape: {historical_tensor.shape}")
 
         # Stack predictions into a single tensor
         predictions = torch.stack(predictions, dim=1)  # Shape: [1, forecast_steps, 1]
