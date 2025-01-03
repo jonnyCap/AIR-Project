@@ -3,6 +3,7 @@
 # This notebook implementes the retrievel system
 #%%
 import pandas as pd
+import torch
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
@@ -17,7 +18,7 @@ class RetrievalSystem:
         Args:
             path (str): The path to the CSV file to load.
         """
-        self.model_type = 'bert-base-nli-mean-tokens'
+        self.model_type = 'all-MiniLM-L6-v2'
         self.retrieval_number = retrieval_number
 
         if os.path.exists(path):
@@ -39,6 +40,55 @@ class RetrievalSystem:
             [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
         )
         return preprocessed_text
+
+    def find_similar_entries_for_batch(self, texts: str, top_n: int = None, excluded_tickers=None):
+        """
+        Embeds a batch of texts and finds the most similar entries in the dataset for each.
+        Args:we
+            texts (list): List of input texts to embed and compare.
+            excluded_tickers (list): List of tickers to exclude from similarity checks.
+        Returns:
+            list: A list of tuples containing embeddings and DataFrames for each text.
+        """
+
+        if not top_n:
+            top_n = self.retrieval_number
+
+        # Preprocess all texts
+        processed_texts = [self.preprocess_text(text) for text in texts]
+
+        # Generate embeddings for all input texts as a batch
+        input_embeddings = self.model.encode(processed_texts)
+
+        # Prepare the dataset
+        if 'embedding' not in self.data.columns:
+            raise ValueError("The CSV file must have an 'embedding' column.")
+
+        copied_data = self.data.copy()
+
+        # Exclude rows with tickers in excluded_tickers
+        if excluded_tickers:
+            copied_data = copied_data[~copied_data['tickers'].isin(excluded_tickers)]
+
+        # Convert embeddings column to lists if necessary
+        if isinstance(copied_data['embedding'].iloc[0], str):
+            copied_data['embedding'] = copied_data['embedding'].apply(eval)
+
+        embeddings = copied_data['embedding'].tolist()
+        dataset_embeddings = torch.tensor(embeddings, dtype=torch.float32)
+
+        # Compute cosine similarity for all input embeddings
+        input_embeddings = torch.tensor(input_embeddings, dtype=torch.float32)
+        similarities = torch.matmul(input_embeddings, dataset_embeddings.T)  # Efficient batch cosine similarity
+
+        # Collect top-N similar entries for each input text
+        results = []
+        for i, sim in enumerate(similarities):
+            copied_data['similarity'] = sim.numpy()  # Add similarity scores to the dataset
+            top_results = copied_data.sort_values(by='similarity', ascending=False).head(top_n)
+            results.append((input_embeddings[i].numpy(), top_results))
+
+        return results
 
     def find_similar_entries(self, text: str, top_n: int = None, excluded_tickers=None):
         """

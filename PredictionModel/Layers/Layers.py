@@ -8,10 +8,9 @@ class SimilarityLayer(nn.Module):
     def __init__(self, retrieval_number: int):
         super(SimilarityLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(retrieval_number, 2 * retrieval_number),
+            nn.Linear(retrieval_number, retrieval_number),  # Reduced size
             nn.ReLU(),
-            nn.Linear(2 * retrieval_number, 2 * retrieval_number),
-            nn.LayerNorm(2 * retrieval_number),
+            nn.LayerNorm(retrieval_number),  # Directly apply LayerNorm here
             nn.ReLU()
         )
 
@@ -28,8 +27,8 @@ class StaticFeatureLayer(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(static_feature_dim * retrieval_number, static_feature_dim * (retrieval_number // 2)),
             nn.ReLU(),
-            nn.Linear(static_feature_dim * (retrieval_number // 2), 2 * hidden_dim),
-            nn.LayerNorm(2 * hidden_dim),
+            nn.Linear(static_feature_dim * (retrieval_number // 2), hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU()
         )
 
@@ -44,14 +43,12 @@ class HistoricalFeatureLayer(nn.Module):
     def __init__(self, retrieval_number: int, hidden_dim: int, historical_feature_dim: int):
         super(HistoricalFeatureLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(historical_feature_dim * retrieval_number, historical_feature_dim * (retrieval_number // 2)),
+            nn.Linear(historical_feature_dim * retrieval_number, historical_feature_dim * retrieval_number // 2),
             nn.ReLU(),
-            nn.Linear(historical_feature_dim * (retrieval_number // 2), historical_feature_dim * (retrieval_number // 2)),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(historical_feature_dim * (retrieval_number // 2), 4 * hidden_dim),
-            nn.LayerNorm(4 * hidden_dim),
-            nn.ReLU(),
+            nn.Linear(historical_feature_dim * retrieval_number // 2, 2 * hidden_dim),  # Reduced size
+            nn.Dropout(0.1),
+            nn.LayerNorm(2 * hidden_dim),
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -66,9 +63,9 @@ class IdeaLayer(nn.Module):
     def __init__(self, hidden_dim: int, bert_dim: int):
         super(IdeaLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(bert_dim, 4 * hidden_dim),
+            nn.Linear(bert_dim, 2 * hidden_dim),  # Reduced size
             nn.ReLU(),
-            nn.Linear(4 * hidden_dim, 2 * hidden_dim)
+            nn.Linear(2 * hidden_dim, hidden_dim)  # Reduced size
         )
 
     def forward(self, x):
@@ -81,7 +78,7 @@ class IdeaLayer(nn.Module):
 class IdeaStaticLayer(nn.Module):
     def __init__(self, static_feature_dim: int):
         super(IdeaStaticLayer, self).__init__()
-        self.model = nn.Linear(static_feature_dim, 32)
+        self.model = nn.Linear(static_feature_dim, 16)  # Reduced size
 
     def forward(self, x):
         return self.model(x)
@@ -93,7 +90,11 @@ class IdeaStaticLayer(nn.Module):
 class IdeaHistoricalLayer(nn.Module):
     def __init__(self, historical_idea_dim: int, hidden_dim: int):
         super(IdeaHistoricalLayer, self).__init__()
-        self.model = nn.Linear(historical_idea_dim, hidden_dim//2)
+        self.model = nn.Sequential(
+            nn.Linear(historical_idea_dim, hidden_dim//2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim//2, hidden_dim//4),
+        )
 
     def forward(self, x):
         return self.model(x)
@@ -106,10 +107,12 @@ class FirstFusionLayer(nn.Module):
     def __init__(self, bert_dim: int, hidden_dim: int, retrieval_number: int):
         super(FirstFusionLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(bert_dim + retrieval_number + 2 * hidden_dim + 4 * hidden_dim + 2 * retrieval_number, 8 * hidden_dim),  # 384 is the fixed text embedding dimension
+            nn.Linear(bert_dim + retrieval_number + hidden_dim + 2 * hidden_dim + retrieval_number, 6 * hidden_dim),
             nn.ReLU(),
-            nn.Linear(8 * hidden_dim,  4 * hidden_dim),
+            nn.Linear(6 * hidden_dim,  4 * hidden_dim),
             nn.LayerNorm(4 * hidden_dim),
+            nn.ReLU(),
+            nn.Linear(4 * hidden_dim,  3 * hidden_dim),
             nn.ReLU()
         )
 
@@ -124,16 +127,12 @@ class SecondFusionLayer(nn.Module):
     def __init__(self, hidden_dim: int):
         super(SecondFusionLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(4 * hidden_dim + 2 * hidden_dim + 32 + 64, 8 * hidden_dim),  # 384 is the fixed text embedding dimension
-            nn.GELU(),
-            nn.Linear(8 * hidden_dim, 7 * hidden_dim),
-            nn.LayerNorm(7 * hidden_dim),
+            nn.Linear(3 * hidden_dim + hidden_dim + 16 + hidden_dim//4, 4 * hidden_dim),
+            nn.ReLU(),
+            nn.Linear(4 * hidden_dim, 2 * hidden_dim),
+            nn.LayerNorm(2 * hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(7 * hidden_dim, 5 * hidden_dim),
-            nn.Hardswish(),
-            nn.Linear(5 * hidden_dim, 4 * hidden_dim),
         )
 
     def forward(self, x):
@@ -147,13 +146,11 @@ class OutputLayer(nn.Module):
     def __init__(self, hidden_dim: int):
         super(OutputLayer, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(2 * hidden_dim, hidden_dim),
-            nn.Hardswish(),
-            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim//2),
+            nn.LayerNorm(hidden_dim//2),
+            nn.Linear(hidden_dim//2, hidden_dim //4),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim //2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim // 2, 1), # Final Output
+            nn.Linear(hidden_dim // 4, 1), # Final Output
         )
 
     def forward(self, x):
