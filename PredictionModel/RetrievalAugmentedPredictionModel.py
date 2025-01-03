@@ -151,7 +151,6 @@ class RetrievalAugmentedPredictionModel(nn.Module):
 
         # Extract embeddings and tickers from retrieved documents
         retrieved_idea_embeddings = retrieved_documents.loc[:, ["embedding"]].values
-        # print("Combined embeddings shape: ", retrieved_idea_embeddings.shape)
         retrieved_idea_embeddings = torch.tensor(retrieved_idea_embeddings.tolist(), dtype=torch.float32).to(device)
 
         retrieved_similarities = retrieved_documents.loc[:, ["similarity"]].values.flatten()
@@ -185,66 +184,59 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         if historical_data is not None and use_auxiliary_inputs:
             historical_tensor = historical_data.clone().to(device)
         else:
-            historical_tensor = torch.zeros((1, self.historical_idea_dim), dtype=torch.float32).to(device)
+            historical_tensor = torch.zeros((combined_historical_tensor.shape[0], self.historical_idea_dim), dtype=torch.float32).to(device)
 
         predictions = []
         for step in range(self.forecast_steps):
-            # Put retrieved documents into appropriate input layers
+            # Fusing and applying attention to batch of data (No need for unsqueeze(0))
             weighted_sum, attention_weights = self.attention_model(retrieved_idea_embeddings)
-            attention_weights = attention_weights.view(1, -1)
-            # print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
+            attention_weights = attention_weights.view(-1, self.retrieval_number)
 
-            similarity_output = self.similarity_fc(retrieved_similarities).unsqueeze(0)
-            combined_static_output = self.static_fc(combined_static_tensor).unsqueeze(0)
-            combined_historical_output = self.historical_fc(combined_historical_tensor).unsqueeze(0)
-            # print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
+            similarity_output = self.similarity_fc(retrieved_similarities)
+            combined_static_output = self.static_fc(combined_static_tensor)
+            combined_historical_output = self.historical_fc(combined_historical_tensor)
 
-            # 1. FUSION LAYER - Fuse retrieval layers together
+            # FUSION LAYER - Fuse retrieval layers together
             combined_retrieval_input = torch.cat((weighted_sum, attention_weights, combined_static_output, combined_historical_output, similarity_output), dim=1)
             first_fusion_output = self._first_fusion_fc(combined_retrieval_input)
 
             # Attention layer
             first_fusion_attention_output, _ = self.fusion_attention(first_fusion_output, first_fusion_output, first_fusion_output)
 
-            # Put new ideas data into input layers
+            # Idea output (for batch processing)
             idea_output = self.idea_fc(idea_embedding)
             if use_auxiliary_inputs:
                 static_output = self.idea_static_fc(static_features.to(device))
                 historical_output = self.idea_historical_fc(historical_tensor)
             else:
-                static_input = torch.zeros((1, self.static_feature_dim), dtype=torch.float32).to(device)
+                static_input = torch.zeros((combined_static_tensor.shape[0], self.static_feature_dim), dtype=torch.float32).to(device)
                 static_output = self.idea_static_fc(static_input)
-                historical_input = torch.zeros((1, self.historical_idea_dim), dtype=torch.float32).to(device)
+                historical_input = torch.zeros((combined_historical_tensor.shape[0], self.historical_idea_dim), dtype=torch.float32).to(device)
                 historical_output = self.idea_historical_fc(historical_input)
 
-            # 2. FUSION LAYER - Fuse combined retrieval documents and new idea together
-            # print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
+            # FUSION LAYER - Fuse combined retrieval documents and new idea together
             combined_idea_input = torch.cat((first_fusion_attention_output, idea_output, static_output, historical_output), dim=1)
             second_fusion_output = self._second_fusion_fc(combined_idea_input)
 
             # Attention layer
             second_fusion_attention_output, _ = self.second_fusion_attention(second_fusion_output, second_fusion_output, second_fusion_output)
 
-            # LSTM
-            lstm_output, _ = self.lstm(second_fusion_attention_output.unsqueeze(1))  # Add sequence dimension
+            # LSTM (batch first)
+            lstm_output, _ = self.lstm(second_fusion_attention_output)
 
             # Attention
             lstm_attention_output, _ = self.attention(lstm_output, lstm_output, lstm_output)
 
             # OUTPUT
-            final_prediction = self.output_fc(lstm_attention_output.squeeze(1))  # Remove sequence dimension
+            final_prediction = self.output_fc(lstm_attention_output.squeeze(1))
 
-            # Append to predictions
             predictions.append(final_prediction)
 
             # Update historical tensor for next step
-            # print(f"Final prediction: {final_prediction.shape}, historical tensor: {historical_tensor.shape}")
             historical_tensor = torch.cat((historical_tensor[:, 1:], final_prediction), dim=1)
-            # print(f"Resulting historical tensor shape: {historical_tensor.shape}")
 
-        # Stack predictions into a single tensor
-        predictions = torch.stack(predictions, dim=1)  # Shape: [1, forecast_steps, 1]
-        predictions = predictions.squeeze(-1)  # Remove the last dimension, Shape: [1, forecast_steps]
+        predictions = torch.stack(predictions, dim=1)
+        predictions = predictions.squeeze(-1)  # Remove last dimension if necessary
         return predictions
 
 
