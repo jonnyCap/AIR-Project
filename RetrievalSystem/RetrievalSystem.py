@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
 import spacy
-
+import argparse
 BERT_ENCODING_SIZE = 768
 
 class RetrievalSystem:
@@ -122,9 +122,9 @@ class RetrievalSystem:
 # Define paths relative to the current working directory
 INPUT_PATH = "../Dataset/Data/normalized_real_company_stock_dataset_large.csv"
 OUTPUT_PATH = "Embeddings/embeddings.csv"
-
 CREATE_DATASET = False
-TEST = True
+TEST = False
+FRONTEND = True
 
 if __name__ == '__main__':
     if CREATE_DATASET:
@@ -137,3 +137,15 @@ if __name__ == '__main__':
         idea = "American Assets Trust, Inc. is a full service, vertically integrated and self-administered real estate investment trust ('REIT'), headquartered in San Diego, California. The company has over 55 years of experience in acquiring, improving, developing and managing premier office, retail, and residential properties throughout the United States in some of the nation's most dynamic, high-barrier-to-entry markets primarily in Southern California, Northern California, Washington, Oregon, Texas and Hawaii. The company's office portfolio comprises approximately 4.1 million rentable square feet, and its retail portfolio comprises approximately 3.1 million rentable square feet. In addition, the company owns one mixed-use property (including approximately 94,000 rentable square feet of retail space and a 369-room all-suite hotel) and 2,110 multifamily units. In 2011, the company was formed to succeed to the real estate business of American Assets, Inc., a privately held corporation founded in 1967 and, as such, has significant experience, long-standing relationships and extensive knowledge of its core markets, submarkets and asset classes."
         result = retrieval_system.find_similar_entries(idea, 10)
         print(result)
+
+    if FRONTEND:
+        project_root = os.path.dirname(os.path.abspath(__file__))  # Directory of the script
+        OUTPUT_PATH = os.path.join(project_root,"CompromisedEmbeddings", "embeddings", "embeddings.csv")    
+        
+        retrieval_system = RetrievalSystem(OUTPUT_PATH)
+        parser = argparse.ArgumentParser(description="Find similar companies based on an idea.")
+        parser.add_argument("--idea", type=str, required=True, help="The idea to search similar companies for.")
+        parser.add_argument("--top_n", type=int, default=10, help="Number of similar entries to retrieve.")
+        args = parser.parse_args()
+        _, similar_entries = retrieval_system.find_similar_entries(text=args.idea, top_n=args.top_n)
+        print(similar_entries[['tickers', 'similarity']].to_json(orient="records"))
