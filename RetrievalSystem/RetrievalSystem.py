@@ -41,12 +41,13 @@ class RetrievalSystem:
         )
         return preprocessed_text
 
-    def find_similar_entries_for_batch(self, texts: str, top_n: int = None, excluded_tickers=None):
+    def find_similar_entries_for_batch(self, texts: list, top_n: int = None, excluded_tickers: dict = None):
         """
         Embeds a batch of texts and finds the most similar entries in the dataset for each.
-        Args:we
+        Args:
             texts (list): List of input texts to embed and compare.
-            excluded_tickers (list): List of tickers to exclude from similarity checks.
+            excluded_tickers (dict): Dictionary where each key corresponds to the index of a text, and each value
+                                     is a list of tickers to exclude for that text.
         Returns:
             list: A list of tuples containing embeddings and DataFrames for each text.
         """
@@ -66,10 +67,6 @@ class RetrievalSystem:
 
         copied_data = self.data.copy()
 
-        # Exclude rows with tickers in excluded_tickers
-        if excluded_tickers:
-            copied_data = copied_data[~copied_data['tickers'].isin(excluded_tickers)]
-
         # Convert embeddings column to lists if necessary
         if isinstance(copied_data['embedding'].iloc[0], str):
             copied_data['embedding'] = copied_data['embedding'].apply(eval)
@@ -82,10 +79,23 @@ class RetrievalSystem:
         similarities = torch.matmul(input_embeddings, dataset_embeddings.T)  # Efficient batch cosine similarity
 
         # Collect top-N similar entries for each input text
+        # Collect top-N similar entries for each input text
         results = []
         for i, sim in enumerate(similarities):
-            copied_data['similarity'] = sim.numpy()  # Add similarity scores to the dataset
-            top_results = copied_data.sort_values(by='similarity', ascending=False).head(top_n)
+            # Add similarity scores directly to copied_data
+            copied_data['similarity'] = sim.numpy()  # Replace or add similarity column
+
+            # Filter the dataset for this text
+            if excluded_tickers and i in excluded_tickers:
+                excluded = excluded_tickers[i]
+                filtered_data = copied_data[~copied_data['tickers'].isin(excluded)]
+            else:
+                filtered_data = copied_data
+
+            # Sort and get top-N similar entries
+            top_results = filtered_data.sort_values(by='similarity', ascending=False).head(top_n)
+
+            # Append results
             results.append((input_embeddings[i].numpy(), top_results))
 
         return results
@@ -183,7 +193,8 @@ if __name__ == '__main__':
 
     if TEST:
         retrieval_system = RetrievalSystem(OUTPUT_PATH)
-        idea = "Hello world program that can print hello world"
+        own_idea = "Hello world program that can print hello world"
         idea = "American Assets Trust, Inc. is a full service, vertically integrated and self-administered real estate investment trust ('REIT'), headquartered in San Diego, California. The company has over 55 years of experience in acquiring, improving, developing and managing premier office, retail, and residential properties throughout the United States in some of the nation's most dynamic, high-barrier-to-entry markets primarily in Southern California, Northern California, Washington, Oregon, Texas and Hawaii. The company's office portfolio comprises approximately 4.1 million rentable square feet, and its retail portfolio comprises approximately 3.1 million rentable square feet. In addition, the company owns one mixed-use property (including approximately 94,000 rentable square feet of retail space and a 369-room all-suite hotel) and 2,110 multifamily units. In 2011, the company was formed to succeed to the real estate business of American Assets, Inc., a privately held corporation founded in 1967 and, as such, has significant experience, long-standing relationships and extensive knowledge of its core markets, submarkets and asset classes."
         result = retrieval_system.find_similar_entries(idea, 10)
-        print(result)
+        result_batch = retrieval_system.find_similar_entries_for_batch(texts=[idea, idea], top_n=10, excluded_tickers={0: ["AAT", "SVC"], 1: []})
+        print(result_batch)
