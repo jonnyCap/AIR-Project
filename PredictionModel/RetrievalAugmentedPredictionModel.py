@@ -61,7 +61,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         self.output_fc = OutputLayer(hidden_dim=hidden_dim)
 
 
-    def forward(self, ideas: list, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers: dict = None):
+    def forward(self, ideas: list=None, retrieval_result=None, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers: dict = None):
         # Ensure device compatibility
         if excluded_tickers is None:
             excluded_tickers = {}
@@ -69,15 +69,20 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             print("We need a dataset for retrieval")
             return None
 
+        if not ideas and not retrieval_result:
+            print("We need either an idea text or a retrieval result")
+            return None
+
         device = next(self.parameters()).device
 
         # --- Retrieval Model ---
         # Batch retrieve embeddings and documents
-        retrieval_results = self.retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=self.retrieval_number, excluded_tickers=excluded_tickers)
+        if not retrieval_result:
+            retrieval_result = self.retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=self.retrieval_number, excluded_tickers=excluded_tickers)
 
         # Extract embeddings, similarities, and tickers for the batch
         idea_embeddings, retrieved_embeddings, retrieved_similarities, retrieved_tickers = [], [], [], []
-        for embedding, documents in retrieval_results:
+        for embedding, documents in retrieval_result:
             idea_embeddings.append(embedding)
             retrieved_embeddings.append(torch.tensor(documents['embedding'].tolist(), dtype=torch.float32).to(device))
             retrieved_similarities.append(torch.tensor(documents['similarity'].tolist(), dtype=torch.float32).to(device))
@@ -89,7 +94,6 @@ class RetrievalAugmentedPredictionModel(nn.Module):
 
         retrieved_idea_embeddings = torch.stack(retrieved_embeddings).to(device)  # [batch_size, num_retrieved, embedding_dim]
         retrieved_similarities = torch.stack(retrieved_similarities).to(device)  # [batch_size, num_retrieved]
-
         # --- Preparing Inputs for Layer ---
 
         print("Retrieved tickers: ", retrieved_tickers)
@@ -230,7 +234,7 @@ def example_usage():
     hidden_dim_num = 128          # Hidden layer size
     forecast_steps_num = 6       # Predict next 12 months
 
-    batch_size = 9
+    batch_size = 1
 
     DATASET_PATH = "../Dataset/Data/normalized_real_company_stock_dataset_large.csv"
     dataset = pd.read_csv(DATASET_PATH)
@@ -303,6 +307,19 @@ def example_usage():
     print(prediction.shape)
 
 
+
+    retrieval_result = retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=5)
+    prediction = model(
+        dataset=dataset,
+        retrieval_result=retrieval_result,
+        use_auxiliary_inputs=False,
+    )
+
+    print(prediction)
+    print(prediction.shape)
+
+
+
 #%% md
 # ### Simple Training Loop
 #%%
@@ -346,6 +363,9 @@ class StockDataset(Dataset):
         return idea, static_data, historical_data, target, ticker
 
 def test_training():
+    dataset = pd.read_csv("../Dataset/normalized_real_company_stock_dataset_large.csv")
+    removed_tickers = []
+    current_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # Initialize dataset and DataLoader
     static_columns = [
         col for col in dataset.columns
@@ -415,7 +435,7 @@ def test_training():
 
         # Print epoch summary
         print(f"Epoch [{epoch + 1}/{epochs}] completed. Total Loss: {total_loss:.4f}")
-        
+
         return epochs, losses, targets, predictions
 
 
@@ -423,7 +443,11 @@ def test_training():
 # # Evaluation
 #%%
 # Plot Training Loss
-def visualize_retrieval_augmented_prediction_model(epochs, losses, targets, predictions):
+def visualize_retrieval_augmented_prediction_model(model, epochs, losses, targets, predictions):
+    dataset = pd.read_csv("../Dataset/normalized_real_company_stock_dataset_large.csv")
+    removed_tickers = []
+    current_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     plt.figure(figsize=(10, 6))
     plt.plot(range(1, epochs + 1), losses, marker='o', label="Training Loss")
     plt.xlabel("Epoch")
