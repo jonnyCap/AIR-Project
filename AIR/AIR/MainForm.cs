@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualBasic.ApplicationServices;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,8 @@ namespace AIR
         public void ClearTextBox()
         {
             textBoxidea.Clear();
+            prediction_list.Clear();
+            company_stock.Clear();
         }
         private void RoundPanel(Panel panel, int cornerRadius)
         {
@@ -70,6 +73,7 @@ namespace AIR
                 // Maximize the window if it's in the normal state
                 this.WindowState = FormWindowState.Maximized;
                 RoundPanel(paneltextbox, 30);
+                
             }
             else if (this.WindowState == FormWindowState.Maximized)
             {
@@ -91,7 +95,7 @@ namespace AIR
 
         }
         JArray similarCompanies;
-        private void getSimilarCompanies(string idea)
+        private void getSimilarCompanies(string idea, Dictionary<string, List<double>> stock_per_company)
         {
 
             string projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".."));
@@ -118,10 +122,31 @@ namespace AIR
                     {
                         string result = reader.ReadToEnd();
                         process.WaitForExit();
-                        //Debug.WriteLine($"Result-companies: {result}");
+                        //Debug.WriteLine(result);
 
                         // Parse and display the result
-                        similarCompanies = JArray.Parse(result);
+                        similarCompanies = JArray.Parse(result.Trim());
+                        //Debug.WriteLine(similarCompanies.ToString());
+                        //stock_per_company = new Dictionary<string, List<double>>();
+                        stock_per_company.Clear();
+                        foreach (var company in similarCompanies)
+                        {
+                            if (company != null)
+                            {
+                                List<double> stock = new List<double>();
+                                for (int i = 1; i <= 24; i++)
+                                {
+                                    stock.Add(double.Parse(company["month_" + i + "_performance"].ToString()));
+                                }
+
+                                // Add data to the provided stock_per_company dictionary
+                                stock_per_company[company["business_description"].ToString()] = stock;
+                            }
+                        }
+                        
+                        //Debug.WriteLine($"hallo: {string.Join(", ", stock_per_company.Keys)}");
+
+
                     }
 
                     // Check for errors
@@ -141,7 +166,7 @@ namespace AIR
             }
         }
         JArray stockPrediction;
-        private void getStockPrediction(string idea)
+        private void getStockPrediction(string idea, List<double> pred_list)
         {
             string projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".."));
             //Debug.WriteLine($"ProjectRoot: {projectRoot}");
@@ -165,11 +190,83 @@ namespace AIR
                     using (var reader = process.StandardOutput)
                     {
                         string result = reader.ReadToEnd();
-                        process.WaitForExit(); ;
+
+                        process.WaitForExit();
+
+                        //process.ErrorDataReceived += (sender, e) => Debug.WriteLine("Error: " + e.Data);
+                        //process.BeginErrorReadLine();
+                        //process.WaitForExit();
                         // Parse and display the result
                         //Debug.WriteLine($"Result-Stock: {result}");
 
                         stockPrediction = JArray.Parse(result);
+
+                        foreach (var predictions in stockPrediction)
+                        {
+                            foreach (var prediction in predictions)
+                            { 
+                                double val = double.Parse(prediction.ToString());
+                                pred_list.Add(val);
+                            }
+                        }
+                        // Display the results - Example code
+                    }
+                    // Check for errors
+                    using (var errorReader = process.StandardError)
+                    {
+                        string errors = errorReader.ReadToEnd();
+                        if (!string.IsNullOrEmpty(errors))
+                        {
+                            MessageBox.Show(errors, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
+        }
+        JArray rankings;
+        private void getRanking(string idea, List<double> predlist, Dictionary<string, List<double>> company_stock)
+        {
+            string projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".."));
+            //Debug.WriteLine($"ProjectRoot: {projectRoot}");
+            string pythonScript = Path.Combine(projectRoot, "RankingSystem", "RankingModel.py");
+            string pythonInterpreter = Path.Combine(projectRoot, "venv", "Scripts", "python.exe");
+            company_stock[idea] = predlist;
+            try
+            {
+                string companyStockJson = JsonConvert.SerializeObject(company_stock);
+
+
+                string escapedCompanyStockJson = Uri.EscapeDataString(companyStockJson);
+                //Debug.WriteLine($"Serialized company stock JSON: {companyStockJson}");
+
+                // Start the Python process
+                var start = new ProcessStartInfo
+                {
+                    FileName = pythonInterpreter,
+                    Arguments = $"\"{pythonScript}\" --company_and_stock \"{escapedCompanyStockJson}\"", // Optional: Add top_n if needed
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(start))
+                {
+                    using (var reader = process.StandardOutput)
+                    {
+                        string result = reader.ReadToEnd();
+                        //process.ErrorDataReceived += (sender, e) => Debug.WriteLine("Error: " + e.Data);
+                        //process.BeginErrorReadLine();
+                        //process.WaitForExit();
+                        process.WaitForExit();
+                        // Parse and display the result
+                        Debug.WriteLine($"{result}");
+
+                        rankings = JArray.Parse(result);
                         // Display the results - Example code
                     }
                     // Check for errors
@@ -189,6 +286,9 @@ namespace AIR
             }
         }
         //async because otherwise it blocks other functions
+        Dictionary<string, List<double>> company_stock = new Dictionary<string, List<double>>();
+        List<double> prediction_list = new List<double>();
+
         private async void iconButtonAnalyze_Click(object sender, EventArgs e)
         {
             try
@@ -205,11 +305,14 @@ namespace AIR
                 }
 
                 // Run time-consuming tasks asynchronously
-                var similarCompaniesTask = Task.Run(() => getSimilarCompanies(idea));
-                var stockPredictionTask = Task.Run(() => getStockPrediction(idea));
+                var similarCompaniesTask = Task.Run(() => getSimilarCompanies(idea,company_stock));
+                var stockPredictionTask = Task.Run(() => getStockPrediction(idea, prediction_list));
                 // Wait for both tasks to complete
+                
                 await Task.WhenAll(similarCompaniesTask, stockPredictionTask);
-
+                
+                var rankingTask = Task.Run(() => getRanking(idea, prediction_list, company_stock));
+                await Task.WhenAll(rankingTask);
                 // Display the results after the tasks complete
                 DisplayResultsForSimCompanies(similarCompanies, stockPrediction);
             }
@@ -232,10 +335,28 @@ namespace AIR
             foreach (var company in similarCompanies)
             {
                 overviewForm.setTickerAndSimilarity(company["tickers"].ToString(), company["similarity"].ToString());
+
             }
             foreach (var pred in stockPrediction)
             {
                 overviewForm.setStockPrediction(pred);
+            }
+            foreach (var rank in rankings)
+            {
+                string ticker = null;
+                foreach(var company in similarCompanies)
+                {
+                    if (company["business_description"].ToString() == rank["idea"].ToString())
+                    {
+                        ticker = company["tickers"].ToString();
+                        break;
+                    }
+                }
+                if (ticker == null)
+                {
+                    ticker = "Your Idea";
+                }
+                overviewForm.setRankingCompanies(rank["idea"].ToString(),ticker, double.Parse(rank["score"].ToString()));
             }
             overviewForm.Show();
             this.Hide();

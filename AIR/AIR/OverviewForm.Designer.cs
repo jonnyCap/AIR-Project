@@ -34,11 +34,11 @@
             maximizeButton = new FontAwesome.Sharp.IconButton();
             closeButton = new FontAwesome.Sharp.IconButton();
             panelchoose = new Panel();
+            buttonnewidea = new Button();
             buttonRanking = new Button();
             buttonCompanies = new Button();
             buttonStock = new Button();
             panelforms = new Panel();
-            buttonnewidea = new Button();
             closepanel.SuspendLayout();
             panelchoose.SuspendLayout();
             SuspendLayout();
@@ -131,6 +131,20 @@
             panelchoose.Size = new Size(1250, 61);
             panelchoose.TabIndex = 2;
             // 
+            // buttonnewidea
+            // 
+            buttonnewidea.BackColor = Color.FromArgb(64, 64, 64);
+            buttonnewidea.Dock = DockStyle.Right;
+            buttonnewidea.FlatStyle = FlatStyle.Popup;
+            buttonnewidea.ForeColor = SystemColors.Window;
+            buttonnewidea.Location = new Point(1019, 0);
+            buttonnewidea.Name = "buttonnewidea";
+            buttonnewidea.Size = new Size(231, 61);
+            buttonnewidea.TabIndex = 3;
+            buttonnewidea.Text = "Try a new Idea";
+            buttonnewidea.UseVisualStyleBackColor = false;
+            buttonnewidea.Click += buttonnewidea_Click;
+            // 
             // buttonRanking
             // 
             buttonRanking.BackColor = Color.FromArgb(64, 64, 64);
@@ -180,20 +194,6 @@
             panelforms.Name = "panelforms";
             panelforms.Size = new Size(1250, 547);
             panelforms.TabIndex = 3;
-            // 
-            // buttonnewidea
-            // 
-            buttonnewidea.BackColor = Color.FromArgb(64, 64, 64);
-            buttonnewidea.Dock = DockStyle.Right;
-            buttonnewidea.FlatStyle = FlatStyle.Popup;
-            buttonnewidea.ForeColor = SystemColors.Window;
-            buttonnewidea.Location = new Point(1019, 0);
-            buttonnewidea.Name = "buttonnewidea";
-            buttonnewidea.Size = new Size(231, 61);
-            buttonnewidea.TabIndex = 3;
-            buttonnewidea.Text = "Try a new Idea";
-            buttonnewidea.UseVisualStyleBackColor = false;
-            buttonnewidea.Click += buttonnewidea_Click;
             // 
             // OverviewForm
             // 

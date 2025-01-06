@@ -35,6 +35,8 @@ namespace AIR
             panelforms.Controls.Add(rankingForm);
             rankingForm.Dock = DockStyle.Fill;
             similarCompaniesForm.Show();
+            //rankingForm.RoundRankingPanels();
+            //similarCompaniesForm.RoundSimCompaniesPanels();
 
 
 
@@ -45,6 +47,11 @@ namespace AIR
             //similarity_list.Add(similarity);
             similarCompaniesForm.setListinBox(ticker, similarity);
 
+        }
+
+        public void setRankingCompanies(string idea,string ticker, double score)
+        {
+            rankingForm.setRankedCompanies(idea,ticker, score);   
         }
         public void setStockPrediction(JToken stockpred)
         {
@@ -63,21 +70,27 @@ namespace AIR
             if (this.WindowState == FormWindowState.Normal)
             {
                 // Maximize the window if it's in the normal state
+                
                 stockPredictionForm.sizeOfPlot(1600, 1200);
-                similarCompaniesForm.sizeOfCompanies(1600, 800);
-                similarCompaniesForm.changeFontSize(12);
+                //similarCompaniesForm.sizeOfCompanies(1600, 800);
+                //similarCompaniesForm.changeFontSize(12);
 
                 this.WindowState = FormWindowState.Maximized;
+                //similarCompaniesForm.RoundSimCompaniesPanels();
+                //rankingForm.RoundRankingPanels();
                 //RoundPanel(paneltextbox, 30);
             }
             else if (this.WindowState == FormWindowState.Maximized)
             {
                 // Restore the window to normal if it's already maximized
+                
                 stockPredictionForm.sizeOfPlot(800, 600);
-                similarCompaniesForm.sizeOfCompanies(700, 300);
-                similarCompaniesForm.changeFontSize(10);
+                //similarCompaniesForm.sizeOfCompanies(700, 300);
+                //similarCompaniesForm.changeFontSize(10);
 
                 this.WindowState = FormWindowState.Normal;
+                //similarCompaniesForm.RoundSimCompaniesPanels();
+                //rankingForm.RoundRankingPanels();
                 //RoundPanel(paneltextbox, 30);
 
 
@@ -86,7 +99,11 @@ namespace AIR
 
         private void minimizeButton_Click(object sender, EventArgs e)
         {
+           
             this.WindowState = FormWindowState.Minimized;
+            similarCompaniesForm.RoundSimCompaniesPanels();
+            //rankingForm.RoundRankingPanels();
+
 
         }
 
@@ -150,7 +167,7 @@ namespace AIR
         private void buttonnewidea_Click(object sender, EventArgs e)
         {
             this.Hide();
-            similarCompaniesForm.clearListBox();
+            //similarCompaniesForm.clearListBox();
             stockPredictionForm.clearPlot();
             mainForm.ClearTextBox();
             mainForm.Show();
