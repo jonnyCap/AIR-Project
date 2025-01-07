@@ -24,6 +24,10 @@ class RetrievalSystem:
         if os.path.exists(path):
             self.data = pd.read_csv(path)
         self.model = SentenceTransformer(self.model_type)
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = self.model.to(self.device)
+        
         self.nlp = spacy.load("en_core_web_sm")  # Load spaCy for preprocessing
 
     def preprocess_text(self, text: str) -> str:
@@ -174,6 +178,10 @@ class RetrievalSystem:
 
         # Save the processed data
         processed_data.to_csv(output_path)
+
+    def encode(self, text: str):
+        preprocessed_text = self.preprocess_text(text)
+        return self.model.encode(preprocessed_text)
 
 #%% md
 # ### Creation of Embedding dataset
