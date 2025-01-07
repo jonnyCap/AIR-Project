@@ -175,6 +175,10 @@ class RetrievalSystem:
         # Save the processed data
         processed_data.to_csv(output_path)
 
+    def encode(self, text: str):
+        preprocessed_text = self.preprocess_text(text)
+        return self.model.encode(preprocessed_text)
+
 #%% md
 # ### Creation of Embedding dataset
 # We create this in order for faster execution in our final user pripeline
