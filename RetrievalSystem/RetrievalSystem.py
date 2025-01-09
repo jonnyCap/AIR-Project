@@ -26,6 +26,10 @@ class RetrievalSystem:
         self.model = SentenceTransformer(self.model_type)
         self.nlp = spacy.load("en_core_web_sm")  # Load spaCy for preprocessing
 
+    def encode(self, text:str):
+        preprocessed_text = self.preprocess_text(text)
+        return self.model.encode(preprocessed_text)
+
     def preprocess_text(self, text: str) -> str:
         """
         Preprocesses the input text by removing stop words and applying lemmatization.

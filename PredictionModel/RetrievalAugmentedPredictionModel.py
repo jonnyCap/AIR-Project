@@ -6,12 +6,11 @@
 #%%
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
-from RetrievalSystem import RetrievalSystem
-from AttentionModel import AttentionModel
+from RetrievalSystem.RetrievalSystem import RetrievalSystem
+from PredictionModel.AttentionModel.AttentionModel import AttentionModel
 import pandas as pd
 import numpy as np
-from Layers import SimilarityLayer, IdeaLayer, IdeaStaticLayer, IdeaHistoricalLayer, StaticFeatureLayer, HistoricalFeatureLayer, FirstFusionLayer, SecondFusionLayer, OutputLayer
-import torch
+from PredictionModel.Layers.Layers import SimilarityLayer, IdeaLayer, IdeaStaticLayer, IdeaHistoricalLayer, StaticFeatureLayer, HistoricalFeatureLayer, FirstFusionLayer, SecondFusionLayer, OutputLayer
 
 INPUT_PATH = "../RetrievalSystem/Embeddings/embeddings.csv"
 
@@ -62,38 +61,42 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         self.output_fc = OutputLayer(hidden_dim=hidden_dim)
 
 
-    def forward(self, ideas: list, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers=None):
+    def forward(self, ideas: list=None, retrieval_result=None, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers: dict = None):
         # Ensure device compatibility
         if excluded_tickers is None:
-            excluded_tickers = []
+            excluded_tickers = {}
         if dataset is None:
-            # print("We need a dataset for retrieval")
+            print("We need a dataset for retrieval")
+            return None
+
+        if not ideas and not retrieval_result:
+            print("We need either an idea text or a retrieval result")
             return None
 
         device = next(self.parameters()).device
 
         # --- Retrieval Model ---
         # Batch retrieve embeddings and documents
-        retrieval_results = self.retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=self.retrieval_number, excluded_tickers=excluded_tickers)
+        if not retrieval_result:
+            retrieval_result = self.retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=self.retrieval_number, excluded_tickers=excluded_tickers)
 
         # Extract embeddings, similarities, and tickers for the batch
         idea_embeddings, retrieved_embeddings, retrieved_similarities, retrieved_tickers = [], [], [], []
-        for embedding, documents in retrieval_results:
+        for embedding, documents in retrieval_result:
             idea_embeddings.append(embedding)
             retrieved_embeddings.append(torch.tensor(documents['embedding'].tolist(), dtype=torch.float32).to(device))
             retrieved_similarities.append(torch.tensor(documents['similarity'].tolist(), dtype=torch.float32).to(device))
             retrieved_tickers.append(documents['tickers'].values)
 
         # Convert to tensors for further processing
-        idea_embeddings = torch.tensor(idea_embeddings, dtype=torch.float32).to(device)
-        idea_embeddings = idea_embeddings.squeeze(1)
+        idea_embeddings = np.array(idea_embeddings, dtype=np.float32)  # Convert to NumPy array
+        idea_embeddings = torch.tensor(idea_embeddings, dtype=torch.float32).to(device).squeeze(1)
 
         retrieved_idea_embeddings = torch.stack(retrieved_embeddings).to(device)  # [batch_size, num_retrieved, embedding_dim]
         retrieved_similarities = torch.stack(retrieved_similarities).to(device)  # [batch_size, num_retrieved]
-
         # --- Preparing Inputs for Layer ---
 
-        # print("Retrieved tickers: ", retrieved_tickers)
+        print("Retrieved tickers: ", retrieved_tickers)
         dataset = dataset.set_index("tickers")
 
         # Filter rows from the dataset and extract numeric data
@@ -109,7 +112,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         # Convert filtered data into a batch tensor with padding
         filtered_data = [torch.tensor(row, dtype=torch.float32) for row in filtered_data]
         filtered_data = pad_sequence(filtered_data, batch_first=True).to(device)  # [batch_size, padded_length, numeric_dim]
-        # print("We have these retrieved documents: ", filtered_data.shape)
+        print("We have these retrieved documents: ", filtered_data.shape)
 
         # Define static and month columns
         static_columns = [
@@ -134,33 +137,37 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             month_data = filtered[month_columns].apply(pd.to_numeric, errors='coerce').fillna(0).values
             month_vectors.append(month_data.flatten())  # Flatten to handle batch processing
 
-        # Convert to tensors
-        combined_static_tensor = torch.tensor(static_vectors, dtype=torch.float32).to(device)  # [batch_size, static_dim]
-        combined_historical_tensor = torch.tensor(month_vectors, dtype=torch.float32).to(device)  # [batch_size, historical_dim]
+            print(f"Shapes: month_data: {month_data.shape}, static_data: {static_data.shape}")
 
-        # print(f"Static Tensor Shape: {combined_static_tensor.shape}, Historical Tensor Shape: {combined_historical_tensor.shape}")
+        # Convert to tensors
+        combined_static_tensor = np.array(static_vectors, dtype=np.float32)  # Convert to NumPy array
+        combined_static_tensor = torch.tensor(combined_static_tensor, dtype=torch.float32).to(device)  # [batch_size, static_dim]
+        combined_historical_tensor = np.array(month_vectors, dtype=np.float32)  # Convert to NumPy array
+        combined_historical_tensor = torch.tensor(combined_historical_tensor, dtype=torch.float32).to(device)  # [batch_size, historical_dim]
+
+        print(f"Static Tensor Shape: {combined_static_tensor.shape}, Historical Tensor Shape: {combined_historical_tensor.shape}")
 
         # --- AttentionModel, IdeaInput, 1.FusionLayer ---
         # Put retrieved documents into appropriate input layers
         weighted_sum, attention_weights = self.attention_model(retrieved_idea_embeddings)
         attention_weights = attention_weights.view(attention_weights.size(0), -1, 1)  # Retain batch size
-        # print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
+        print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
 
         similarity_output = self.similarity_fc(retrieved_similarities)  # [batch_size, feature_dim]
         combined_static_output = self.static_fc(combined_static_tensor)  # [batch_size, feature_dim]
         combined_historical_output = self.historical_fc(combined_historical_tensor)  # [batch_size, feature_dim]
 
-        # print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
+        print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
 
         # Ensure attention_weights matches the batch size
         attention_weights = attention_weights.squeeze(-1)  # Remove the last dimension if not needed
-        # print(f"Shapes: weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}, combined_static_output: {combined_static_output.shape}, combined_historical: {combined_historical_output.shape}, similarity: {similarity_output.shape}")
+        print(f"Shapes: weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}, combined_static_output: {combined_static_output.shape}, combined_historical: {combined_historical_output.shape}, similarity: {similarity_output.shape}")
 
         # Concatenate along the last dimension
         combined_retrieval_input = torch.cat((
             weighted_sum, attention_weights, combined_static_output, combined_historical_output, similarity_output
         ), dim=-1)  # Concatenation along the last dimension
-        # print(f"Shape of combined_retrieval_input: {combined_retrieval_input.shape}")
+        print(f"Shape of combined_retrieval_input: {combined_retrieval_input.shape}")
 
         first_fusion_output = self.first_fusion_fc(combined_retrieval_input)
 
@@ -186,7 +193,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             historical_output = self.idea_historical_fc(historical_tensor)
 
             # 2. FUSION LAYER - Fuse combined retrieval documents and new idea together
-            # print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
+            print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
 
             combined_idea_input = torch.cat((first_fusion_attention_output, idea_output, static_output, historical_output), dim=1)
             second_fusion_output = self.second_fusion_fc(combined_idea_input)
@@ -213,3 +220,280 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         predictions = torch.cat(predictions, dim=1)  # Shape: [1, forecast_steps, 1]
         predictions = predictions.to(torch.float32).to(device)  # Retain computational graph
         return predictions
+
+
+#%% md
+# ### Example usage
+# Here is an example of how to use our newly created model:
+#%%
+import torch
+# Initialize the model - HAVE TO BE ADAPTED TO DATASET (Values are likely correct)
+def example_usage():
+    static_feature_dim_num = 4    # Number of static features
+    historical_dim_num = 12       # Number of historical stock performance points
+    hidden_dim_num = 128          # Hidden layer size
+    forecast_steps_num = 6       # Predict next 12 months
+
+    batch_size = 1
+
+    DATASET_PATH = "../Dataset/Data/normalized_real_company_stock_dataset_large.csv"
+    dataset = pd.read_csv(DATASET_PATH)
+    print(f"Datasetshape: {dataset.shape}")
+
+    print(f"Datasetshape: {dataset.shape}")
+
+    retrieval_system = RetrievalSystem(INPUT_PATH, retrieval_number=5)
+
+    model = RetrievalAugmentedPredictionModel(
+        forecast_steps=forecast_steps_num,
+        ret_sys = retrieval_system,
+        retrieval_number=5
+    )
+
+    current_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Random entry
+    idea_entries = dataset.iloc[10:10 + batch_size, :]  # Get a batch of rows
+
+    # Removed tickers: Select rows from index 3 onward
+    removed_tickers = [] # dataset.iloc[100:, :]["tickers"].tolist()
+
+    # Create excluded_tickers map
+    excluded_tickers = {
+        i: [ticker] + removed_tickers  # Include the ticker itself and all removed tickers
+        for i, ticker in enumerate(dataset["tickers"])
+    }
+
+    ideas = idea_entries["business_description"].tolist()
+
+    static_columns = [
+        col for col in dataset.columns
+        if col not in ["tickers", "business_description"] and not col.startswith("month")
+    ]
+    month_columns = [col for col in dataset.columns if col.startswith("month")]
+
+    # Prepare static and historical data for the batch
+    static_data = idea_entries[static_columns]
+    historical_data = idea_entries[month_columns]
+
+    # Ensure numeric data and handle missing values
+    static_data = static_data.apply(pd.to_numeric, errors='coerce').fillna(0).values.astype(float)
+    historical_data = historical_data.apply(pd.to_numeric, errors='coerce').fillna(0).values.astype(float)
+
+    # Convert to tensors with batch dimension
+    static_data = torch.tensor(static_data, dtype=torch.float32).to(current_device)  # [batch_size, static_feature_dim_num]
+    historical_data = torch.tensor(historical_data[:, -len(month_columns):-forecast_steps_num], dtype=torch.float32).to(current_device)  # [batch_size, historical_dim_num]
+
+    # Make a prediction
+    prediction = model(
+        ideas=ideas,
+        dataset=dataset,
+        static_features=static_data,
+        historical_data=historical_data,
+        use_auxiliary_inputs=True,
+        excluded_tickers=excluded_tickers,
+    )
+    print(prediction)  # Co
+    print(prediction.shape)
+
+
+    # Make a prediction
+    prediction = model(
+        ideas=ideas,
+        dataset=dataset,
+        use_auxiliary_inputs=False
+    )
+    print(prediction)  # Co
+    print(prediction.shape)
+
+
+
+    retrieval_result = retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=5)
+    prediction = model(
+        dataset=dataset,
+        retrieval_result=retrieval_result,
+        use_auxiliary_inputs=False,
+    )
+
+    print(prediction)
+    print(prediction.shape)
+
+
+
+#%% md
+# ### Simple Training Loop
+#%%
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+import matplotlib.pyplot as plt
+
+
+# Define a PyTorch Dataset
+class StockDataset(Dataset):
+    def __init__(self, dataset, forecast_steps, static_columns, month_columns):
+        self.dataset = dataset
+        self.forecast_steps = forecast_steps
+        self.static_columns = static_columns
+        self.month_columns = month_columns
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        idea_entry = self.dataset.iloc[idx]
+
+        # Extract idea, static data, historical data, and target
+        idea = idea_entry["business_description"]
+        ticker = idea_entry["tickers"]
+
+        static_data = idea_entry[self.static_columns]
+        historical_data = idea_entry[self.month_columns]
+
+        # Handle missing values
+        static_data = static_data.apply(pd.to_numeric, errors='coerce').fillna(0).values.astype(float)
+        historical_data = historical_data.apply(pd.to_numeric, errors='coerce').fillna(0).values.astype(float)
+
+        # Split target and input
+        target = torch.tensor(historical_data[-self.forecast_steps:], dtype=torch.float32)
+        historical_data = torch.tensor(historical_data[:-self.forecast_steps], dtype=torch.float32)
+
+        # Return all relevant data
+        return idea, static_data, historical_data, target, ticker
+
+def test_training():
+    dataset = pd.read_csv("../Dataset/normalized_real_company_stock_dataset_large.csv")
+    removed_tickers = []
+    current_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Initialize dataset and DataLoader
+    static_columns = [
+        col for col in dataset.columns
+        if col not in ["tickers", "business_description"] and not col.startswith("month")
+    ]
+    month_columns = [col for col in dataset.columns if col.startswith("month")]
+
+    forecast_steps = 6
+    batch_size = 10
+    retrieval_number = 10
+
+    stock_dataset = StockDataset(dataset, forecast_steps, static_columns, month_columns)
+    data_loader = DataLoader(stock_dataset, batch_size=batch_size, shuffle=True)
+
+    # Initialize the model
+    retrieval_system = RetrievalSystem(INPUT_PATH, retrieval_number=10)
+    model = RetrievalAugmentedPredictionModel(
+        forecast_steps=forecast_steps,
+        ret_sys=retrieval_system,
+        retrieval_number=10,
+    )
+    model.to(current_device)
+
+    # Loss function and optimizer
+    loss_fn = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+
+    # Initialize storage for loss values
+    losses = []
+
+    # Training loop
+    epochs = 1
+    for epoch in range(epochs):
+        total_loss = 0.0
+
+        for batch in data_loader:
+            ideas, static_data, historical_data, targets, tickers = batch
+
+            static_data = static_data.clone().detach().to(current_device)
+            historical_data = torch.stack([h.clone().detach() for h in historical_data]).to(current_device)
+            targets = torch.stack([t.clone().detach() for t in targets]).to(current_device)
+
+            # Remove tickers in the current batch from the dataset for retrieval
+            excluded_tickers = list(tickers)
+
+            # Forward pass
+            predictions = model(
+                ideas=ideas,
+                dataset=dataset,
+                static_features=static_data,
+                historical_data=historical_data,
+                use_auxiliary_inputs=True,
+                excluded_tickers={i: [ticker] + removed_tickers for i, ticker in enumerate(excluded_tickers)}
+            )
+
+            # Compute loss
+            loss = loss_fn(predictions, targets)
+            total_loss += loss.item()
+
+            # Backpropagation and optimization
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        # Store epoch loss
+        losses.append(total_loss)
+
+        # Print epoch summary
+        print(f"Epoch [{epoch + 1}/{epochs}] completed. Total Loss: {total_loss:.4f}")
+
+        return epochs, losses, targets, predictions
+
+
+#%% md
+# # Evaluation
+#%%
+# Plot Training Loss
+def visualize_retrieval_augmented_prediction_model(model, epochs, losses, targets, predictions):
+    dataset = pd.read_csv("../Dataset/normalized_real_company_stock_dataset_large.csv")
+    removed_tickers = []
+    current_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, epochs + 1), losses, marker='o', label="Training Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training Loss Over Epochs")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    # Example post-training prediction
+    example_idea = "I want to create a coffee shop that uses digital cups to analyze what's in your coffee and its impact on you."
+    prediction = model(
+        ideas=[example_idea],
+        dataset=dataset,
+        use_auxiliary_inputs=False
+    )
+    print("Prediction after training:", prediction)
+
+    # Plot Predictions vs. Targets
+    targets_numpy = targets.cpu().detach().numpy()
+    predictions_numpy = predictions.cpu().detach().numpy()
+
+    plt.figure(figsize=(10, 6))
+    for i in range(predictions_numpy.shape[0]):  # Loop over batch size
+        plt.plot(targets_numpy[i], label=f"Target {i+1}", linestyle='--')
+        plt.plot(predictions_numpy[i], label=f"Prediction {i+1}")
+    plt.xlabel("Forecast Step")
+    plt.ylabel("Value")
+    plt.title("Predictions vs. Targets")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    # Example post-training prediction
+    example_idea = "I want to create a coffee shop that uses digital cups to analyze what's in your coffee and its impact on you."
+    prediction = model(
+        ideas=[example_idea],
+        dataset=dataset,
+        use_auxiliary_inputs=False
+    )
+    print("Prediction after training:", prediction)
+
+#%% md
+# # Main
+# Here the test functions can be executed
+# 
+#%%
+if __name__ == "__main__":
+    example_usage()
