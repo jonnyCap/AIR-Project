@@ -46,7 +46,7 @@ class BusinessIdeaDataset(Dataset):
             'score': torch.tensor(score, dtype=torch.float)
         }
 
-# Model architecture
+# RAPModel architecture
 class RankingModel(nn.Module):
     def __init__(self, bert_model_name='bert-base-uncased', hidden_size=256):
         super(RankingModel, self).__init__()
@@ -158,7 +158,7 @@ def train_and_eval():
 
     # Save the model weights
     torch.save(model.state_dict(), "ranking_model_weights.pth")
-    print("Model weights saved successfully!")
+    print("RAPModel weights saved successfully!")
 
 
     # Example data for ten companies with realistic stock performance

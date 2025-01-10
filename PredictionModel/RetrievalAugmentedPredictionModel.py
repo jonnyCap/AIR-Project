@@ -1,7 +1,7 @@
 #%% md
-# # Retrieval Augmented Prediction Model
+# # Retrieval Augmented Prediction RAPModel
 # 
-# This Model, specifically created to make Stock Predictions for upcoming Businesses, means this model predicts the market startup of any new business idea.
+# This RAPModel, specifically created to make Stock Predictions for upcoming Businesses, means this model predicts the market startup of any new business idea.
 # 
 #%%
 import torch.nn as nn
@@ -26,7 +26,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         self.historical_idea_dim = historical_dim - forecast_steps
         self.retrieval_number = retrieval_number
 
-        # Retrieval Model
+        # Retrieval RAPModel
         if ret_sys:
             self.retrieval_system = ret_sys
         else:
@@ -75,7 +75,7 @@ class RetrievalAugmentedPredictionModel(nn.Module):
 
         device = next(self.parameters()).device
 
-        # --- Retrieval Model ---
+        # --- Retrieval RAPModel ---
         # Batch retrieve embeddings and documents
         if not retrieval_result:
             retrieval_result = self.retrieval_system.find_similar_entries_for_batch(texts=ideas, top_n=self.retrieval_number, excluded_tickers=excluded_tickers)
