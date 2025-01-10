@@ -1,9 +1,9 @@
 #%% md
-# # Hybrid Stock Prediction Model
+# # Hybrid Stock Prediction RAPModel
 # 
-# This Model, specifically created to make Stock Predictions for upcoming Businesses, means this model predicts the market startup of any new business idea.
+# This RAPModel, specifically created to make Stock Predictions for upcoming Businesses, means this model predicts the market startup of any new business idea.
 # 
-# ### Model Architecture
+# ### RAPModel Architecture
 # To create the most realistic approach possible, we created a hybrid model consisting of the following layers:
 # 1. Encodes business ideas using Sentence-BERT.
 # 2. Processes static company features using a dense layer.

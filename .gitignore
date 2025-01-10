@@ -36,4 +36,8 @@ Dataset/.env
 RetrievalSystem/Embeddings/
 RetrievalSystem/Embeddings/*
 
+# Ignore Trained Models
+Training/TrainedModels/
+Training/TrainedModels/*
+
 
