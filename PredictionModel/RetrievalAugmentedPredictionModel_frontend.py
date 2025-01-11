@@ -31,7 +31,8 @@ if __name__ == '__main__':
     prediction = userinterface.prediction_model(
         ideas = ideas,
         dataset=userinterface.dataset,
-        use_auxiliary_inputs=False
+        use_auxiliary_inputs=False,
+        not_frontend = False
     )
     # TODO: SHOULD BE DONE AFTER RANKING MODEL
     month_columns = [col for col in userinterface.dataset.columns if col.startswith("month")]
