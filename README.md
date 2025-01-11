@@ -17,9 +17,10 @@ alongside their IDs ("ticker") and the preprocessed and embedded idea text. Thes
 models. Additionally, the **Ranking Model** also gets the predicted stock performance from our **RAP-Model** as input.
 
 In this image you can see the following subsystem:
-1. Retrieval System
-2. Rietrieval Augmented Prediction Model (RAP-Model)
-3. Ranking Model
+1. [Retrieval System](https://github.com/jonnyCap/AIR-Project/blob/main/RetrievalSystem/RetrievalSystem.ipynb)
+2. [Retrieval Augmented Prediction Model (RAP-Model)](https://github.com/jonnyCap/AIR-Project/blob/main/PredictionModel/RetrievalAugmentedPredictionModel.ipynb)
+3. [Ranking Model](https://github.com/jonnyCap/AIR-Project/blob/main/RankingModel/RankingModel.ipynb)
+
 that work together to provide you with the most accurate information possible
 
 ### GUI
@@ -30,8 +31,10 @@ npm run dev
 
 ## Model Architecture, Results and Evaluation
 Fur further information checkout our [Design Document](/Documents/Design%20Document/AIR_DD_G09_V2.pdf), our [Report](/Documents/Report/Report.pdf), and our [Presentation](/Documents/Presentation/Presentation.pdf).
-However, here is a short graphical Overview over our Model:
+However, here is a short graphical overview over our Model:
 
 ![System Architecture Image](/Documents/Images/AIR%20-%20RAPM%20Architecture.png "System architecture")
 
 
+The first attempt to reliably predict stock performances was a rather simple [**prediction-system**](https://github.com/jonnyCap/AIR-Project/blob/main/PredictionModel/HybridStockPredictionModel.ipynb), based solely on the inputs of a new idea. Later on we extended this with implementation of retrieval augmentation, which lead to the creatoin of our [**Retrieval Augmented Prediction Model (RAP-Model)**](https://github.com/jonnyCap/AIR-Project/blob/main/PredictionModel/RetrievalAugmentedPredictionModel.ipynb).
+This was so far our most promising architecture — one that can still be adapted in many variants, depending on the number of retrieved elements, forecast steps, and auxiliary inputs. In an effort to further improve accuracy, we developed an [**Attention-Optimized Retrieval-Augmented Prediction Model**](https://github.com/jonnyCap/AIR-Project/blob/attention_fix/PredictionModel/AttentionOptimizedRetrievalAugmentedPredictionModel.ipynb), designed to better leverage attention mechanisms and LSTM layers. However, as this approach did not yield the expected results, we decided to continue working with the original **RAP Model**.
