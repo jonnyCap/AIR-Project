@@ -61,16 +61,18 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         self.output_fc = OutputLayer(hidden_dim=hidden_dim)
 
 
-    def forward(self, ideas: list=None, retrieval_result=None, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers: dict = None):
+    def forward(self, ideas: list=None, retrieval_result=None, dataset: pd.DataFrame = None, static_features=None, historical_data=None, use_auxiliary_inputs=True, excluded_tickers: dict = None, not_frontend = True):
         # Ensure device compatibility
         if excluded_tickers is None:
             excluded_tickers = {}
         if dataset is None:
-            print("We need a dataset for retrieval")
+            if not_frontend:
+                print("We need a dataset for retrieval")
             return None
 
         if not ideas and not retrieval_result:
-            print("We need either an idea text or a retrieval result")
+            if not_frontend:
+                print("We need either an idea text or a retrieval result")
             return None
 
         device = next(self.parameters()).device
@@ -95,8 +97,8 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         retrieved_idea_embeddings = torch.stack(retrieved_embeddings).to(device)  # [batch_size, num_retrieved, embedding_dim]
         retrieved_similarities = torch.stack(retrieved_similarities).to(device)  # [batch_size, num_retrieved]
         # --- Preparing Inputs for Layer ---
-
-        print("Retrieved tickers: ", retrieved_tickers)
+        if not_frontend:
+            print("Retrieved tickers: ", retrieved_tickers)
         dataset = dataset.set_index("tickers")
 
         # Filter rows from the dataset and extract numeric data
@@ -112,7 +114,8 @@ class RetrievalAugmentedPredictionModel(nn.Module):
         # Convert filtered data into a batch tensor with padding
         filtered_data = [torch.tensor(row, dtype=torch.float32) for row in filtered_data]
         filtered_data = pad_sequence(filtered_data, batch_first=True).to(device)  # [batch_size, padded_length, numeric_dim]
-        print("We have these retrieved documents: ", filtered_data.shape)
+        if not_frontend:
+            print("We have these retrieved documents: ", filtered_data.shape)
 
         # Define static and month columns
         static_columns = [
@@ -136,38 +139,41 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             # Extract month data
             month_data = filtered[month_columns].apply(pd.to_numeric, errors='coerce').fillna(0).values
             month_vectors.append(month_data.flatten())  # Flatten to handle batch processing
-
-            print(f"Shapes: month_data: {month_data.shape}, static_data: {static_data.shape}")
+            if not_frontend:
+                print(f"Shapes: month_data: {month_data.shape}, static_data: {static_data.shape}")
 
         # Convert to tensors
         combined_static_tensor = np.array(static_vectors, dtype=np.float32)  # Convert to NumPy array
         combined_static_tensor = torch.tensor(combined_static_tensor, dtype=torch.float32).to(device)  # [batch_size, static_dim]
         combined_historical_tensor = np.array(month_vectors, dtype=np.float32)  # Convert to NumPy array
         combined_historical_tensor = torch.tensor(combined_historical_tensor, dtype=torch.float32).to(device)  # [batch_size, historical_dim]
-
-        print(f"Static Tensor Shape: {combined_static_tensor.shape}, Historical Tensor Shape: {combined_historical_tensor.shape}")
+        if not_frontend:
+            print(f"Static Tensor Shape: {combined_static_tensor.shape}, Historical Tensor Shape: {combined_historical_tensor.shape}")
 
         # --- AttentionModel, IdeaInput, 1.FusionLayer ---
         # Put retrieved documents into appropriate input layers
         weighted_sum, attention_weights = self.attention_model(retrieved_idea_embeddings)
         attention_weights = attention_weights.view(attention_weights.size(0), -1, 1)  # Retain batch size
-        print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
+        if not_frontend:
+            print(f"Shape of weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}")
 
         similarity_output = self.similarity_fc(retrieved_similarities)  # [batch_size, feature_dim]
         combined_static_output = self.static_fc(combined_static_tensor)  # [batch_size, feature_dim]
         combined_historical_output = self.historical_fc(combined_historical_tensor)  # [batch_size, feature_dim]
-
-        print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
+        if not_frontend:
+            print(f"Shape of static_output: {combined_static_output.shape}, similarity: {similarity_output.shape}, historical: {combined_historical_output.shape}")
 
         # Ensure attention_weights matches the batch size
         attention_weights = attention_weights.squeeze(-1)  # Remove the last dimension if not needed
-        print(f"Shapes: weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}, combined_static_output: {combined_static_output.shape}, combined_historical: {combined_historical_output.shape}, similarity: {similarity_output.shape}")
+        if not_frontend:
+            print(f"Shapes: weighted_sum: {weighted_sum.shape}, attention_weights: {attention_weights.shape}, combined_static_output: {combined_static_output.shape}, combined_historical: {combined_historical_output.shape}, similarity: {similarity_output.shape}")
 
         # Concatenate along the last dimension
         combined_retrieval_input = torch.cat((
             weighted_sum, attention_weights, combined_static_output, combined_historical_output, similarity_output
         ), dim=-1)  # Concatenation along the last dimension
-        print(f"Shape of combined_retrieval_input: {combined_retrieval_input.shape}")
+        if not_frontend:
+            print(f"Shape of combined_retrieval_input: {combined_retrieval_input.shape}")
 
         first_fusion_output = self.first_fusion_fc(combined_retrieval_input)
 
@@ -193,7 +199,8 @@ class RetrievalAugmentedPredictionModel(nn.Module):
             historical_output = self.idea_historical_fc(historical_tensor)
 
             # 2. FUSION LAYER - Fuse combined retrieval documents and new idea together
-            print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
+            if not_frontend:
+                print(f"Shapes of static_output: {static_output.shape}, historical_output: {historical_output.shape}, idea: {idea_output.shape}, attention_output: {first_fusion_attention_output.shape}")
 
             combined_idea_input = torch.cat((first_fusion_attention_output, idea_output, static_output, historical_output), dim=1)
             second_fusion_output = self.second_fusion_fc(combined_idea_input)
