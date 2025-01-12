@@ -7,6 +7,14 @@
       "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|c:\\users\\maxil\\air-project\\air\\air\\overviewform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\overviewform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|C:\\Users\\maxil\\AIR-Project\\AIR\\air\\rankingform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\rankingform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|c:\\users\\maxil\\air-project\\air\\air\\stockpredictionform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\stockpredictionform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -15,20 +23,12 @@
       "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\overviewform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|c:\\users\\maxil\\air-project\\air\\air\\overviewform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\overviewform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|C:\\Users\\maxil\\AIR-Project\\AIR\\air\\similarcompaniesform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\similarcompaniesform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
       "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|c:\\users\\maxil\\air-project\\air\\air\\similarcompaniesform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\similarcompaniesform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|C:\\Users\\maxil\\AIR-Project\\AIR\\air\\rankingform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|solutionrelative:air\\rankingform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
       "AbsoluteMoniker": "D:0:0:{FB751C74-6A4C-4567-B8CF-AF548B6FB15C}|AIR\\AIR.csproj|c:\\users\\maxil\\air-project\\air\\air\\rankingform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -46,11 +46,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "StockPredictionForm.cs",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\StockPredictionForm.cs",
               "RelativeDocumentMoniker": "AIR\\StockPredictionForm.cs",
@@ -59,8 +59,7 @@
               "ViewState": "AgIAAE0AAAAAAAAAAAAjwGQAAAAeAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-01-11T09:37:53.255Z",
-              "IsPinned": true,
-              "EditorCaption": ""
+              "IsPinned": true
             },
             {
               "$type": "Bookmark",
@@ -76,32 +75,32 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "OverviewForm.cs [Entwurf]",
-              "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\OverviewForm.cs",
-              "RelativeDocumentMoniker": "AIR\\OverviewForm.cs",
-              "ToolTip": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\OverviewForm.cs [Entwurf]",
-              "RelativeToolTip": "AIR\\OverviewForm.cs [Entwurf]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-01-11T22:14:53.199Z",
-              "EditorCaption": " [Entwurf]"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 0,
               "Title": "MainForm.cs",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\MainForm.cs",
               "RelativeDocumentMoniker": "AIR\\MainForm.cs",
               "ToolTip": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\MainForm.cs",
               "RelativeToolTip": "AIR\\MainForm.cs",
-              "ViewState": "AgIAACABAAAAAAAAAAAjwCABAAAUAAAAAAAAAA==",
+              "ViewState": "AgIAAIkBAAAAAAAAAAAjwJkBAAAhAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-01-06T08:39:36.379Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 1,
+              "Title": "OverviewForm.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\OverviewForm.cs",
+              "RelativeDocumentMoniker": "AIR\\OverviewForm.cs",
+              "ToolTip": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\OverviewForm.cs [Design]",
+              "RelativeToolTip": "AIR\\OverviewForm.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-01-11T22:14:53.199Z",
+              "EditorCaption": " [Design]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "RankingForm.cs [Entwurf]",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\RankingForm.cs",
               "RelativeDocumentMoniker": "AIR\\RankingForm.cs",
@@ -112,7 +111,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "OverviewForm.cs",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\OverviewForm.cs",
               "RelativeDocumentMoniker": "AIR\\OverviewForm.cs",
@@ -120,12 +119,11 @@
               "RelativeToolTip": "AIR\\OverviewForm.cs",
               "ViewState": "AgIAAJYAAAAAAAAAAAAjwKoAAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-01-06T14:31:56.887Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-01-06T14:31:56.887Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "SimilarCompaniesForm.cs [Entwurf]",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\SimilarCompaniesForm.cs",
               "RelativeDocumentMoniker": "AIR\\SimilarCompaniesForm.cs",
@@ -148,7 +146,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "SimilarCompaniesForm.cs",
               "DocumentMoniker": "C:\\Users\\maxil\\AIR-Project\\AIR\\AIR\\SimilarCompaniesForm.cs",
               "RelativeDocumentMoniker": "AIR\\SimilarCompaniesForm.cs",

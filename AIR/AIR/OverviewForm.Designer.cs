@@ -153,9 +153,9 @@
             buttonRanking.ForeColor = SystemColors.Window;
             buttonRanking.Location = new Point(462, 0);
             buttonRanking.Name = "buttonRanking";
-            buttonRanking.Size = new Size(231, 61);
+            buttonRanking.Size = new Size(235, 61);
             buttonRanking.TabIndex = 2;
-            buttonRanking.Text = "Stock Ranking";
+            buttonRanking.Text = "Ranking Companies";
             buttonRanking.UseVisualStyleBackColor = false;
             buttonRanking.Click += buttonRanking_Click;
             // 

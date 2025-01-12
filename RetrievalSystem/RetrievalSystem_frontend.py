@@ -45,6 +45,7 @@ if __name__ == '__main__':
     if not args.idea:
         raise ValueError("Please provide some text")
     # Retrieval
+    
     retrieval_result = userinterface.retrieval_model.find_similar_entries_for_batch(texts=[args.idea], top_n=10)
     idea_embedding, retrieved_documents = retrieval_result[0]
     tickers = retrieved_documents["tickers"].values
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     new_idea_row = {
         'tickers': ['new_idea'],  # Ticker for the new idea
         'similarity': [0],  # Similarity for the new idea
-        'business_description': [args.idea],  # The idea itself as the business description
+        'business_description': [args.idea],  # The idea ituserinterface as the business description
         'embedding': [idea_embedding]  # The embedding of the idea
     }
     

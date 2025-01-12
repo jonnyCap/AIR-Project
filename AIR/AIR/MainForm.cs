@@ -137,6 +137,8 @@ namespace AIR
 
                         foreach (var company in similarCompanies)
                         {
+                            //Debug.WriteLine($"^Company: {company}");
+
                             List<string> numberStrings = company["embedding"].ToString().Trim('[', ']').Split(',').ToList();
                             List<double> embeddings = new List<double>();
 
@@ -215,6 +217,10 @@ namespace AIR
             string pythonModule = "PredictionModel.RetrievalAugmentedPredictionModel_frontend";
             string pythonInterpreter = Path.Combine(projectRoot, "venv", "Scripts", "python.exe");
             //Debug.WriteLine($"ideas: {ideas[0]} {ideas[1]}");
+            //foreach(var idea in ideas)
+            //{
+            //    Debug.WriteLine($"idea: {idea}");
+            //}
             string ideasJson = JsonConvert.SerializeObject(ideas);
             string escapedideasJson = Uri.EscapeDataString(ideasJson);
 
@@ -242,8 +248,8 @@ namespace AIR
 
                         //process.WaitForExit();
 
-                        //process.ErrorDataReceived += (sender, e) => Debug.WriteLine("Error: " + e.Data);
-                        //process.BeginErrorReadLine();
+                        process.ErrorDataReceived += (sender, e) => Debug.WriteLine("Error: " + e.Data);
+                        process.BeginErrorReadLine();
                         process.WaitForExit();
                         // Parse and display the result
                         result = result.Replace("Loading RAP model weights...", "");
@@ -284,7 +290,7 @@ namespace AIR
         {
             string projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".."));
             //Debug.WriteLine($"Test: {company_stock}");
-            string pythonModule = "RankingSystem.RankingModel_frontend";
+            string pythonModule = "RankingModel.RankingModel_frontend";
             string pythonInterpreter = Path.Combine(projectRoot, "venv", "Scripts", "python.exe");
             var yourcompany = company_stock.FirstOrDefault(c => c.CompanyName == idea);
             yourcompany.StockPerformance = predlist;
@@ -392,7 +398,7 @@ namespace AIR
 
             // Iterate over each entry in the JSON array
 
-            foreach (var company in similarCompanies)
+            foreach (var company in similarCompanies)           
             {
                 overviewForm.setTickerAndSimilarity(company["tickers"].ToString(), company["similarity"].ToString());
 
