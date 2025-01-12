@@ -26,6 +26,47 @@ that work together to provide you with the most accurate information possible
 ### GUI
 The **front-end** was designed and developed with **Windows Forms** built on C#, offering an intuitive and user-friendly interface. 
 With this intuitive design, we interact with models without the need of a server or a backend system. We instead leverage **Python scripts** as alternative to a standard back-end, which offers users a stable connection to the model while enabling enough computational power. Ultimately, the end result is an amalgamation of the best of both worlds – a Windows application, along with a user friendly inbuilt Python interface. This enables us to deeply interact with our models without any hassle. To top it off, a GUI was designed which streamlines the whole process, making it a lot more user friendly.
+## How to Start the Application
+
+Follow the steps below to set up and run the application using Microsoft Visual Studio.
+
+1. Locate the Solution File
+- Navigate to the project directory and find the `.sln` file (e.g., `MyApp.sln`).
+- Double-click the `.sln` file to open it in Microsoft Visual Studio.
+
+2. Set Up the Environment
+**Create a Virtual Environment** (if required):
+   - Run the following command in your terminal to create a virtual environment:
+     ```bash
+     python -m venv venv
+     ```
+   - Activate the virtual environment:
+     - On Windows:
+       ```bash
+       venv\Scripts\activate
+       ```
+     - On macOS/Linux:
+       ```bash
+       source venv/bin/activate
+       ```
+**Install Dependencies**:
+   - Install all required dependencies using the `requirements.txt` file. Run:
+     ```bash
+     pip install -r requirements.txt
+     ```
+3. Prepare the Embeddings File
+- Go to the `CompromisedEmbeddings` folder in the project directory.
+- Locate the `.csv` file and unzip it into a new folder named `Embeddings` in the project root.
+- Ensure the unzipped `.csv` file is placed directly in the `Embeddings` folder and that the .csv file is called embeddings.csv.
+
+4. Build and Run the Application
+- Locate the WindowsForm file (`.sln`) in the `AIR` folder. 
+- Open Microsoft Visual Studio with the `.sln` file by double-clicking on it.
+- Ensure the correct configuration is selected (e.g., `Debug` or `Release`).
+- Click the **Run** button (green play button) in the toolbar or press `F5` to start the application.
+
+5. Application Ready
+- The application should now be running and ready for use.
 
 In The following images, you can see the design and a walkthrough of how to use the **GUI**. First of all, the user begins at the initial screen, where they can input their idea into a designated text field.
 <div style="display: flex; justify-content: space-around; align-items: center;">
