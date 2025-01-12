@@ -48,7 +48,7 @@ Once Selecting the option **"Stock Prediction"**, you will be able to see how yo
 The **Ranking Companies** shows how the idea performs against existing companies and ranks them. 
 
 ## Model Architecture, Results and Evaluation
-Fur further information checkout our [Design Document](/Documents/Design%20Document/AIR_DD_G09_V2.pdf), our [Report](/Documents/Report/Report.pdf), and our [Presentation](/Documents/Presentation/Presentation.pdf).
+Fur further information checkout our [Design Document](/Documents/Design%20Document/AIR_DD_G09_V2.pdf), our [Report](/Documents/Report/AIR_RE_G09.pdf), and our [Presentation](/Documents/Presentation/AIR_PR_G09.pdf).
 However, here is a short graphical overview over our Model:
 
 ![System Architecture Image](/Documents/Images/AIR%20-%20RAPM%20Architecture.png "System architecture")
