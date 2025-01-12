@@ -24,10 +24,31 @@ In this image you can see the following subsystem:
 that work together to provide you with the most accurate information possible
 
 ### GUI
-We also created a graphical user interface, to allow for easy interaction with our model:
-```
-npm run dev
-```
+The **front-end** was designed and developed with **Windows Forms** built on C#, offering an intuitive and user-friendly interface. 
+With this intuitive design, we interact with models without the need of a server or a backend system. We instead leverage **Python scripts** as alternative to a standard back-end, which offers users a stable connection to the model while enabling enough computational power. Ultimately, the end result is an amalgamation of the best of both worlds – a Windows application, along with a user friendly inbuilt Python interface. This enables us to deeply interact with our models without any hassle. To top it off, a GUI was designed which streamlines the whole process, making it a lot more user friendly.
+
+In The following images, you can see the design and a walkthrough of how to use the **<GUI>**:
+![Input Idea Screen](/Documents/Images/AIR%20-%20Interface%20-%20App_starting.png "Start Screen") 
+
+To use the GUI, the user begins at the initial screen, where they can input their idea into a designated text field.
+
+![Loading Screen](/Documents/Images/AIR%20-%20Loading%20Screen.png "Loading Screen")
+
+Once the idea is submitted, a loading screen appears, represented by a progress bar that tracks the system's processing of the input. Once the processing is complete, a new screen pops up displaying a list of similar companies to the input idea.
+
+![Similar Companies](/Documents/Images/AIR%20-%20Similar-Companies.png "Similar Companies")
+
+Here The Companies which are Similar to the Input-Idea will be shown. 
+At the top of this screen, there is a menu with four options: **Similar Companies**, **Stock Ranking**, **Stock Prediction**, and the option for a **New Idea**.
+Selecting any of these options navigates the user to their respective visualizations.
+
+![Stock Prediction](/Documents/Images/AIR%20-%20Stock-Prediction.png "Stock Prediction")
+
+Once Selecting the option **"Stock Prediction"**, you will be able to see how your idea would perform, by forecasting the stock related to the idea.
+
+![Ranking Companies](/Documents/Images/AIR%20-%20Ranking-Companies.png "Ranking Companies")
+
+The **Ranking Companies** shows how the idea performs against existing companies and ranks them. 
 
 ## Model Architecture, Results and Evaluation
 Fur further information checkout our [Design Document](/Documents/Design%20Document/AIR_DD_G09_V2.pdf), our [Report](/Documents/Report/Report.pdf), and our [Presentation](/Documents/Presentation/Presentation.pdf).

@@ -45,7 +45,7 @@ class UserInterface:
         self.retrieval_model = RetrievalSystem(self.embeddings_path, 10)
 
         self.historical_scaler_path = "Dataset/Data/Scaler/historical_scaler.pkl"
-        self.ranking_historical_scaler_path = "Dataset/Data/Scaler/ranking_historical_scaler.pkl"
+        self.ranking_historical_scaler_path = "Dataset/Data/Scaler/stock_scaler.pkl"
 
         self.prediction_model = RetrievalAugmentedPredictionModel(ret_sys=self.retrieval_model, retrieval_number=10, forecast_steps=12)
         if os.path.exists(self.rap_model_weights_path):
@@ -66,9 +66,10 @@ class UserInterface:
         retrieval_result = self.retrieval_model.find_similar_entries_for_batch(texts=[text], top_n=retrieval_number)
         idea_embedding, retrieved_documents = retrieval_result[0]
         tickers = retrieved_documents["tickers"].values
+        tickers_and_similarities = retrieved_documents[["tickers", "similarity"]]
 
         documents = self.dataset.copy()
-        documents = documents[documents["tickers"].isin(tickers)]
+        documents = documents.merge(tickers_and_similarities, on="tickers", how="inner")
 
         # Prediction
         prediction = self.prediction_model(
@@ -77,34 +78,56 @@ class UserInterface:
             use_auxiliary_inputs=False
         )
 
-        # TODO: SHOULD BE DONE AFTER RANKING MODEL
         month_columns = [col for col in self.dataset.columns if col.startswith("month")]
-        result_prediction = prediction
+
         if os.path.exists(self.historical_scaler_path) and os.path.exists(self.ranking_historical_scaler_path):
             with open(self.historical_scaler_path, "rb") as scaler_file:
                 historical_scaler = joblib.load(scaler_file)
 
+            # Concatenate predictions and document values
+            print(f"SHape documents month columns: {month_columns}, shape prediction shape: {prediction.shape}")
+
+            # Prepare padded tensor
+            padded_prediction = torch.zeros(1, 72, device='cpu')
+            padded_prediction[:, 60:72] = prediction
+
+            combined_values = torch.cat(
+                (padded_prediction, torch.tensor(documents[month_columns].values, device='cpu')), dim=0
+            ).detach().numpy()
+
+            # Apply inverse transformation
+            denormalized_values = historical_scaler.inverse_transform(combined_values)
+
+            # Extract predictions and documents
+            denormalized_prediction = denormalized_values[0, 60:72]
+            denormalized_documents_month = denormalized_values[1:, :]
+
+            denormalized_documents = documents.copy()
+            denormalized_documents[month_columns] = denormalized_documents_month
+
             with open(self.ranking_historical_scaler_path, "rb") as ranking_scaler_file:
                 ranking_historical_scaler = joblib.load(ranking_scaler_file)
 
-            norm_predictions = torch.zeros(1, 72)
-            norm_predictions[0, 60:72] = prediction
-            norm_predictions_np = norm_predictions.cpu().detach().numpy()
-            denorm_predictions_np = historical_scaler.inverse_transform(norm_predictions_np)
-            documents[month_columns] = denorm_predictions_np[:, 60:72]
-            result_prediction = denorm_predictions_np[:, 60:72]
+            # Normalize using ranking scaler
+            documents.iloc[:, 60:72] = ranking_historical_scaler.transform(denormalized_documents.iloc[:, 60:72])
+            normalized_prediction = ranking_historical_scaler.transform(denormalized_prediction.reshape(1, -1))
+            normalized_prediction = torch.tensor(normalized_prediction, device='cpu', dtype=torch.float)
 
-            #TODO: Scale with ranking scaler back down
         else:
             print("Couldnt load all required scalers")
-            # raise FileNotFoundError("Historical Scaler not found")
+            raise FileNotFoundError("Historical Scaler not found")
 
         # Ranking
-        ratings = {}
 
         idea_embedding = torch.tensor(idea_embedding, dtype=torch.float).unsqueeze(0)
         print(f"Shape of idea embedding: { idea_embedding.shape }")
-        ratings[IDEA_IDENTIFIER] = self.ranking_model(idea_encoding=idea_embedding, stock_performance=prediction)
+        idea_rating = self.ranking_model(idea_encoding=idea_embedding, stock_performance=normalized_prediction)
+
+        idea_result = {
+            "ticker": IDEA_IDENTIFIER,
+            "business_description": text,
+            "rating": idea_rating.item(),
+        }
 
         # Ratings for similar companies
         print(f"Ranking competitors")
@@ -118,21 +141,21 @@ class UserInterface:
             similar_embeddings_tensor = torch.tensor(similar_embeddings_array, dtype=torch.float32)
 
             # Add to ratings
-            ratings[ticker] = self.ranking_model(idea_encoding=similar_embeddings_tensor, stock_performance=stock_performance_tensor)
+            temp_result = self.ranking_model(idea_encoding=similar_embeddings_tensor, stock_performance=stock_performance_tensor)
 
             # Collect competitor info
             competitors.append({
                 "ticker": ticker,
                 "business_description": document["business_description"].values[0],
-                "rating": ratings[ticker].item()
+                "rating": temp_result.item()
             })
 
         # Unified output
         result = {
-            "retrieved_documents": documents.to_dict(orient="records"),
-            "prediction": result_prediction[0].tolist(),
+            "retrieved_documents": denormalized_documents.to_dict(orient="records"),
+            "prediction": denormalized_prediction.tolist(),
             "ratings": {
-                "new_idea": ratings[IDEA_IDENTIFIER].item(),
+                "new_idea": idea_result,
                 "competitors": competitors
             }
         }
@@ -156,16 +179,39 @@ class UserInterface:
 
         # Plot each company's performance
         plt.figure(figsize=(12, 6))
+
+        # Plot retrieved documents
         for doc in retrieved_documents:
             ticker = doc["tickers"]
+            similarity = doc["similarity"]
             month_data = [doc[col] for col in month_columns if col in doc]
-            plt.plot(month_data, label=ticker)
-        plt.title("Performance of Retrieved Companies")
+            plt.plot(month_data, label=f"{ticker}({similarity:.2f})")
+
+        # Plot new idea's performance
+        new_idea_ticker = result["ratings"]["new_idea"]["ticker"]
+        new_idea_performance = result["prediction"]  # Assuming prediction represents the new idea's stock performance
+
+        # Ensure new_idea_performance is a NumPy array for easier manipulation
+        new_idea_performance = np.array(new_idea_performance)
+
+        # Pad with zeros on the left to size 72
+        new_idea_performance_padded = np.pad(
+            new_idea_performance,
+            (72 - len(new_idea_performance), 0),  # Pad on the left only
+            mode='constant',
+            constant_values=0
+        )
+
+        plt.plot(new_idea_performance_padded, label=new_idea_ticker, linestyle="--", linewidth=2, color="red")
+
+        # Finalize the plot
+        plt.title("Performance of Retrieved Companies and New Idea")
         plt.xlabel("Months")
         plt.ylabel("Performance")
         plt.legend()
         plt.grid(True)
         plt.show()
+
 
         # Plot the predicted idea performance
         plt.figure(figsize=(8, 4))
@@ -177,9 +223,11 @@ class UserInterface:
         plt.legend()
         plt.show()
 
+        all_companies = ratings["competitors"] + [ratings["new_idea"]]
+
         # List companies sorted by rank
         print("\nCompanies Ranked by Rating:")
-        ranked_companies = sorted(ratings["competitors"], key=lambda x: x["rating"], reverse=True)
+        ranked_companies = sorted(all_companies, key=lambda x: x["rating"], reverse=True)
         for idx, company in enumerate(ranked_companies, start=1):
             print(f"{idx}. {company['ticker']} - Rating: {company['rating']:.4f}")
 
@@ -194,9 +242,9 @@ if __name__ == "__main__":
 
     # idea = "Lego Shop"
 
-    idea = "Able View Global Inc. operates as brand management partners of beauty and personal care brands in China. Its brand management services encompass various segments of the brand management value chain, including strategy, branding, digital and social marketing, omni-channel sales, customer services, overseas logistics, and warehouse and fulfilment. The company was incorporated in 2021 and is based in Shanghai, China."
+    #idea = "Able View Global Inc. operates as brand management partners of beauty and personal care brands in China. Its brand management services encompass various segments of the brand management value chain, including strategy, branding, digital and social marketing, omni-channel sales, customer services, overseas logistics, and warehouse and fulfilment. The company was incorporated in 2021 and is based in Shanghai, China."
 
-    idea = "An AI-driven personal finance platform that provides automated budgeting, expense tracking, and investment advice, with customizable dashboards tailored to individual financial goals."
+    # idea = "An AI-driven personal finance platform that provides automated budgeting, expense tracking, and investment advice, with customizable dashboards tailored to individual financial goals."
 
     userinterface = UserInterface()
     response = userinterface.predict(idea)
