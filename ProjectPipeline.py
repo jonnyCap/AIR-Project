@@ -37,7 +37,7 @@ class UserInterface:
         else:
             self.rap_model_weights_path = model_path
 
-        self.ranking_model_weights_path = "Training/RankingModel/ranking_model_weights.pth"
+        self.ranking_model_weights_path = "Training/RankingModel/ranking_model_weights_score_5.pth"
 
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', clean_up_tokenization_spaces=False)
 
