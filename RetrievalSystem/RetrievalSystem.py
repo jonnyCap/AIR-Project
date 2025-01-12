@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
 import spacy
-
+import argparse
 BERT_ENCODING_SIZE = 768
 
 class RetrievalSystem:
@@ -185,10 +185,11 @@ class RetrievalSystem:
 #%%
 # Define paths relative to the current working directory
 INPUT_PATH = "../Dataset/Data/normalized_real_company_stock_dataset_large.csv"
+# print(INPUT_PATH)
 OUTPUT_PATH = "Embeddings/embeddings.csv"
-
 CREATE_DATASET = False
-TEST = True
+TEST = False
+FRONTEND = True
 
 if __name__ == '__main__':
     if CREATE_DATASET:
@@ -202,3 +203,41 @@ if __name__ == '__main__':
         result = retrieval_system.find_similar_entries(idea, 10)
         result_batch = retrieval_system.find_similar_entries_for_batch(texts=[idea, idea], top_n=10, excluded_tickers={0: ["AAT", "SVC"], 1: []})
         print(result_batch)
+    if FRONTEND:
+        project_root = os.path.dirname(os.path.abspath(__file__))  # Directory of the script
+        OUTPUT_PATH = os.path.join(project_root,"CompromisedEmbeddings", "embeddings.csv")
+        INPUT_PATH = os.path.join(project_root,"..","Dataset","Data","normalized_real_company_stock_dataset_large.csv")
+        dataset = pd.read_csv(INPUT_PATH)
+        
+        retrieval_system = RetrievalSystem(OUTPUT_PATH)
+        parser = argparse.ArgumentParser(description="Find similar companies based on an idea.")
+        parser.add_argument("--idea", type=str, required=True, help="The idea to search similar companies for.")
+        parser.add_argument("--top_n", type=int, default=10, help="Number of similar entries to retrieve.")
+        args = parser.parse_args()
+        _, similar_entries = retrieval_system.find_similar_entries(text=args.idea, top_n=args.top_n)
+        # Extract tickers from similar_entries
+        tickers = similar_entries['tickers'].tolist()
+        # print(type(dataset))
+
+        # Retrieve the business descriptions for the tickers
+        descriptions = dataset[dataset['tickers'].isin(tickers)][['tickers', 'business_description']]
+        descriptions_dict = descriptions.set_index('tickers')['business_description'].to_dict()
+        
+        # Add descriptions to similar_entries
+        similar_entries['business_description'] = similar_entries['tickers'].map(descriptions_dict)
+        # Select the relevant columns for performance data
+        performance_columns = ['tickers'] + [f'month_{i}_performance' for i in range(1, 25)]
+        performance_data = dataset[performance_columns]
+
+        # Create a dictionary with tickers as keys and performance data as values
+        performance_dict = performance_data.set_index('tickers').to_dict(orient='index')
+
+        # Add business description and performance data to similar_entries
+        similar_entries['business_description'] = similar_entries['tickers'].map(descriptions_dict)
+
+        # Add month_1_performance to month_12_performance to similar_entries
+        for i in range(1, 25):
+            similar_entries[f'month_{i}_performance'] = similar_entries['tickers'].map(lambda x: performance_dict.get(x, {}).get(f'month_{i}_performance', None))
+
+        # Print the result
+        print(similar_entries[['tickers', 'similarity', 'business_description'] + [f'month_{i}_performance' for i in range(1, 25)]].to_json(orient="records"))
